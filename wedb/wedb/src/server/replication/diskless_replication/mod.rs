@@ -19,7 +19,13 @@
 //! 该会话判败摘除，全员判败即中止扫描，无需独立看门狗任务。
 //!
 //! C# 的 syncInProgress 读写锁 / cts 取消链在 rust 以会话册子原子的批量标志
-//! + 会话终态收敛等价承载（rust 无 cts 撤销链，attach 处理任务不被外部取消）。
+//! 与会话终态收敛等价承载。取消链承接修正：compio thread-per-core 下 attach
+//! 处理任务会随副本断连被网络泵慢臂丢弃（RaceEnd::Disposed，future drop 即
+//! 取消，错误臂清理不可达），取消清理由三枚 RAII 守卫承接——[`SyncBatchGuard`]
+//! （批窗）、[`SyncSessionGuard`]（会话登记）、[`PinDriversGuard`]（批量预锁
+//! 钉线），与正常臂清理通道幂等共存（disarm / 实例匹配）；磁盘链同挂点由
+//! [`replica_sync_session`](super::replica_sync_session) 的 PinTruncationGuard
+//! 承接。
 
 pub mod replica_sync_session;
 pub mod replication_snapshot_iterator;
@@ -28,6 +34,8 @@ pub mod scan_key_gate;
 pub mod sync_status;
 
 pub use replica_sync_session::DisklessSyncSession;
-pub use replication_sync_manager::ReplicationSyncManager;
+pub use replication_sync_manager::{
+  PinDriversGuard, ReplicationSyncManager, SyncBatchGuard, SyncSessionGuard,
+};
 pub use scan_key_gate::{ScanGateGuard, ScanKeyGate};
 pub use sync_status::{SyncStatus, SyncStatusInfo};

@@ -22,7 +22,7 @@ use crate::{
   server::{
     cluster_provider::{ClusterProvider, PrimaryReplicationAssets},
     replication::{
-      aof_sync_driver::AofSyncDriver,
+      aof_sync_driver::{AofSyncDriver, AofSyncDriverStore},
       aof_sync_task::TimePulseSource,
       checkpoint_entry::CheckpointEntry,
       checkpoint_store::read_meta_aligned_begin,
@@ -351,6 +351,53 @@ impl Drop for SendReaderGuard {
   }
 }
 
+/// 预锁截断线钉线守卫（钉线注册 → 在役驱动置换全程持有；对标 C#
+/// AcquireCheckpointEntryAsync :303 钉线 + SendCheckpointAsync catch 块
+/// :205-216 `TryRemove(aofSyncDriver)` 的取消臂承接）：磁盘链编排执行体
+/// future 在快照传送窗 / 钳制往返窗 / 建连窗内被丢弃（副本断连 → 网络泵
+/// 慢臂 RaceEnd::Disposed，future drop 即取消）时，Drop 臂按节点 id 退钉
+/// 出册——与 initiate_replica_sync 尾段及 send_checkpoint_and_recover /
+/// begin_replica_recover_clamp 失败臂的既有退钉同一单点通道。钉线驱动无
+/// wire、is_connected 恒真，throttle_all 周期臂永不收割，不出册即
+/// previous_address / shipped 水位恒钉预锁位点，safe_truncate_aof 与背压
+/// 闸门被永久钳制。
+///
+/// 正常臂 disarm：成功时预锁已由 attach_replica_wire 以授予位点原地置换为
+/// 在役推流驱动（守卫若触发即误杀在役流），失败时既有失败臂已先行退钉，
+/// 守卫退场均为零操作。退钉（registry remove + dispose + 背压闸门重报）
+/// 全为同步方法，Drop 内安全。
+pub struct PinTruncationGuard<'a> {
+  store: &'a AofSyncDriverStore,
+  node: u128,
+  disarmed: bool,
+}
+
+impl<'a> PinTruncationGuard<'a> {
+  /// 持守卫（生产挂点为
+  /// [`ReplicaSyncSession::initiate_replica_sync`](ReplicaSyncSession::initiate_replica_sync)
+  /// 入口，本构造口供测试直构）
+  pub fn new(store: &'a AofSyncDriverStore, node: u128) -> Self {
+    Self {
+      store,
+      node,
+      disarmed: false,
+    }
+  }
+
+  /// 正常收尾解除守卫（退钉交还既有显式失败臂/置换链，防双重清理）
+  pub fn disarm(&mut self) {
+    self.disarmed = true;
+  }
+}
+
+impl Drop for PinTruncationGuard<'_> {
+  fn drop(&mut self) {
+    if !self.disarmed {
+      self.store.try_remove(self.node);
+    }
+  }
+}
+
 impl ReplicaSyncSession {
   /// libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/ReplicaSyncSession.cs:ReplicaSyncSession
   ///
@@ -408,91 +455,109 @@ impl ReplicaSyncSession {
     replica_endpoint: &str,
     replica_meta: &SyncMetadata,
   ) -> Result<AofAddress, ReplicationError> {
-    let PrimaryReplicationAssets { wal, .. } = assets;
-    // 1. 同步策略协商（committed = 主端已提交位；primary_begin = 主端 AOF 起点）。
-    //    子日志维度动态取 rm 装配值（C# Log.CommittedUntilAddress / Log.BeginAddress
-    //    为 AofPhysicalSublogCount 维向量）；rust WalLog 为单物理日志，全部子日志
-    //    槽位共享同一 u64 地址空间，create(N, v) 填满向量即该事实的正确投影——
-    //    多子日志装配下高位槽位不再丢 0 / 误判为 MAX
-    let sublog_count = self.rm.sublog_count() as i32;
-    let committed_until = AofAddress::create(sublog_count, wal.committed_until_address() as i64);
-    let primary_aof_begin = AofAddress::create(sublog_count, wal.begin_address() as i64);
-    let strategy = self.rm.disk_resync_strategy(
-      replica_meta,
-      &committed_until,
-      &primary_aof_begin,
-      provider.fast_aof_truncate(),
-    );
-    let mut sync_start = match &strategy {
-      ResyncStrategy::PartialResync {
-        sync_start_address, ..
-      }
-      | ResyncStrategy::FullResync {
-        sync_start_address, ..
-      } => *sync_start_address,
-    };
+    // 预锁钉线守卫（入口 → 尾段退场全程持有，取消安全退钉见
+    // PinTruncationGuard 文档）：钉线实际注册于下层 send_checkpoint_and_recover
+    // / begin_replica_recover_clamp，正常臂（成功置换 / 失败臂退钉）退场前
+    // 一律 disarm，行为零变化；仅 future 取消臂经 Drop 触发退钉。函数体收进
+    // async 块使所有正常早退（含 `?`）统一经过 disarm 收敛点
+    let mut pin_guard =
+      PinTruncationGuard::new(&self.rm.aof_sync_driver_store, replica_meta.origin_node_id);
+    let res = async {
+      let PrimaryReplicationAssets { wal, .. } = assets;
+      // 1. 同步策略协商（committed = 主端已提交位；primary_begin = 主端 AOF 起点）。
+      //    子日志维度动态取 rm 装配值（C# Log.CommittedUntilAddress / Log.BeginAddress
+      //    为 AofPhysicalSublogCount 维向量）；rust WalLog 为单物理日志，全部子日志
+      //    槽位共享同一 u64 地址空间，create(N, v) 填满向量即该事实的正确投影——
+      //    多子日志装配下高位槽位不再丢 0 / 误判为 MAX
+      let sublog_count = self.rm.sublog_count() as i32;
+      let committed_until = AofAddress::create(sublog_count, wal.committed_until_address() as i64);
+      let primary_aof_begin = AofAddress::create(sublog_count, wal.begin_address() as i64);
+      let strategy = self.rm.disk_resync_strategy(
+        replica_meta,
+        &committed_until,
+        &primary_aof_begin,
+        provider.fast_aof_truncate(),
+      );
+      let mut sync_start = match &strategy {
+        ResyncStrategy::PartialResync {
+          sync_start_address, ..
+        }
+        | ResyncStrategy::FullResync {
+          sync_start_address, ..
+        } => *sync_start_address,
+      };
 
-    // 2. FullResync 检查点下发（#region sendStoresSnapshotData +
-    //    beginReplicaRecover 段）；PartialResync 轻量钳制往返——C#
-    //    SendCheckpointAsync 在快照下发段之后无条件执行
-    //    ExecuteClusterBeginReplicaRecover 往返，其部分重同步形态
-    //   （skipLocalMainStoreCheckpoint=true）不发快照帧、以
-    //    recoverStoreFromToken=false + replayAOFMap 掩码照常往返：副本把本地
-    //    wal「应用位点~授予位点」残留段补应用进存储并对齐授予位点后回传位点，
-    //    主端以回传位点挂推流驱动（C# 源注自陈 "start streaming from that
-    //    address in order not to introduce duplicate insertions"），与无盘臂
-    //    ATTACH_SYNC 恢复握手同形收口。快照缺席（本地检查点缺席/目录未接线）
-    //    维持既有 AOF 直推形态。
-    match &strategy {
-      ResyncStrategy::FullResync { .. } => {
-        if let Some(granted) = self
-          .send_checkpoint_and_recover(provider, wal, replica_endpoint, replica_meta, local_node_id)
-          .await?
-        {
-          sync_start = granted;
+      // 2. FullResync 检查点下发（#region sendStoresSnapshotData +
+      //    beginReplicaRecover 段）；PartialResync 轻量钳制往返——C#
+      //    SendCheckpointAsync 在快照下发段之后无条件执行
+      //    ExecuteClusterBeginReplicaRecover 往返，其部分重同步形态
+      //   （skipLocalMainStoreCheckpoint=true）不发快照帧、以
+      //    recoverStoreFromToken=false + replayAOFMap 掩码照常往返：副本把本地
+      //    wal「应用位点~授予位点」残留段补应用进存储并对齐授予位点后回传位点，
+      //    主端以回传位点挂推流驱动（C# 源注自陈 "start streaming from that
+      //    address in order not to introduce duplicate insertions"），与无盘臂
+      //    ATTACH_SYNC 恢复握手同形收口。快照缺席（本地检查点缺席/目录未接线）
+      //    维持既有 AOF 直推形态。
+      match &strategy {
+        ResyncStrategy::FullResync { .. } => {
+          if let Some(granted) = self
+            .send_checkpoint_and_recover(
+              provider,
+              wal,
+              replica_endpoint,
+              replica_meta,
+              local_node_id,
+            )
+            .await?
+          {
+            sync_start = granted;
+          }
+        }
+        ResyncStrategy::PartialResync {
+          replay_aof_mask, ..
+        } => {
+          sync_start = self
+            .begin_replica_recover_clamp(
+              provider,
+              wal,
+              replica_endpoint,
+              replica_meta,
+              local_node_id,
+              ClampGrant {
+                replay_aof_mask: *replay_aof_mask,
+                sync_start,
+              },
+            )
+            .await?;
         }
       }
-      ResyncStrategy::PartialResync {
-        replay_aof_mask, ..
-      } => {
-        sync_start = self
-          .begin_replica_recover_clamp(
-            provider,
-            wal,
-            replica_endpoint,
-            replica_meta,
-            local_node_id,
-            ClampGrant {
-              replay_aof_mask: *replay_aof_mask,
-              sync_start,
-            },
-          )
-          .await?;
-      }
-    }
 
-    // 3~5. 建连 → 入库接线 → 推流补扫（#region startAofSync）。失败统一退钉
-    //      出册（对标 C# catch 块 :205-216 的
-    //      `if (aofSyncDriver != null) TryRemove(aofSyncDriver)` 异常清理契约）：
-    //      钉线驱动在册期间建连失败 / 挂接拒绝 / 补扫失败若不出册，幽灵驱动
-    //      零推流进度、previous_address 恒钉预锁位点，safe_truncate_aof 与
-    //      背压闸门将被永久钳制（AOF 删段失效 + 写背压闭锁）
-    let res = self
-      .start_aof_sync(
-        provider,
-        assets,
-        local_node_id,
-        replica_endpoint,
-        replica_meta,
-        sync_start,
-      )
-      .await;
-    if res.is_err() {
-      self
-        .rm
-        .aof_sync_driver_store
-        .try_remove(replica_meta.origin_node_id);
+      // 3~5. 建连 → 入库接线 → 推流补扫（#region startAofSync）。失败统一退钉
+      //      出册（对标 C# catch 块 :205-216 的
+      //      `if (aofSyncDriver != null) TryRemove(aofSyncDriver)` 异常清理契约）：
+      //      钉线驱动在册期间建连失败 / 挂接拒绝 / 补扫失败若不出册，幽灵驱动
+      //      零推流进度、previous_address 恒钉预锁位点，safe_truncate_aof 与
+      //      背压闸门将被永久钳制（AOF 删段失效 + 写背压闭锁）
+      let res = self
+        .start_aof_sync(
+          provider,
+          assets,
+          local_node_id,
+          replica_endpoint,
+          replica_meta,
+          sync_start,
+        )
+        .await;
+      if res.is_err() {
+        self
+          .rm
+          .aof_sync_driver_store
+          .try_remove(replica_meta.origin_node_id);
+      }
+      res
     }
+    .await;
+    pin_guard.disarm();
     res
   }
 

@@ -214,11 +214,10 @@ graph TD
   whlog --> wbase
   windex --> whasher
   windex --> wbase
-  wval --> wrecord
   wdev --> wbase
   wepoch --> whasher
   wrecord --> wbase
-  wreviv --> wrecord
+  wreviv --> wbase
 ```
 
 写入路径从会话到磁盘：定位哈希标签，在混合日志可变区占位（启用时优先复活空闲槽位），页进入环形缓冲暂存，封印页在纪元保护下刷入设备。GC 与检查点作为旁路通道复用同一设备。
@@ -305,7 +304,7 @@ wedb/
 
 ### wbase —— L0 原语
 
-按特性启用的模块，无 `full` 特性：`addr`（48 位 `LogAddress` 掩码）、`align`（64B 缓存行 / 扇区运算）、`backoff`（自适应重试状态机）、`base32`、`buf`、`convert`、`crc`（`crc32fast`）、`crc64`、`error`、`future`、`glob`、`group-commit`（组提交）、`hash`、`hash_slot`（槽位路由）、`hex`、`map` / `set`（`papaya` + `gxhash` 并发字典与集合）、`num`、`pool`（`BufferPool` 分级 Direct I/O 扇区对齐缓冲池、`AlignedBuf` 扇区对齐缓冲区、`LimitedFixedBufferPool` 固定块网络缓冲池与 RAII 句柄 `PooledBuffer` / `PooledRefBuffer`）、`simd`、`store_type`、`striped`（锁条带）、`thread`（TLS 线程标识）、`time`（`coarsetime` 助手、`now_ms`）、`varint`（OPPV 变长整型）。
+按特性启用的模块，无 `full` 特性：`addr`（48 位 `LogAddress` 掩码）、`align`（64B 缓存行 / 扇区运算）、`ascii`（ASCII 规范化与折叠）、`backoff`（自适应重试状态机）、`base32`、`buf`、`cfg`（跨 crate 基座配置）、`convert`、`crc`（`crc32fast`）、`crc64`、`endpoint`（端点判定单源）、`error`、`future`、`glob`、`group-commit`（组提交）、`hash`、`hash_slot`（槽位路由）、`heap`（集合堆内存记账常量）、`hex`、`keyfmt`（日志面键预览单点）、`map` / `set`（`papaya` + `gxhash` 并发字典与集合）、`ns_prefix`（会话域隔离前缀编解码）、`num`、`pool`（`BufferPool` 分级 Direct I/O 扇区对齐缓冲池、`AlignedBuf` 扇区对齐缓冲区、`LimitedFixedBufferPool` 固定块网络缓冲池与 RAII 句柄 `PooledBuffer` / `PooledRefBuffer`）、`primed`（TLS 追加读缓冲初始化契约）、`simd`、`store_type`、`striped`（锁条带）、`supervise`（后台任务 panic 监督单点）、`thread`（TLS 线程标识）、`time`（`coarsetime` 助手、`now_ms`）、`varint`（OPPV 变长整型）（`BufferPool` 分级 Direct I/O 扇区对齐缓冲池、`AlignedBuf` 扇区对齐缓冲区、`LimitedFixedBufferPool` 固定块网络缓冲池与 RAII 句柄 `PooledBuffer` / `PooledRefBuffer`）、`simd`、`store_type`、`striped`（锁条带）、`thread`（TLS 线程标识）、`time`（`coarsetime` 助手、`now_ms`）、`varint`（OPPV 变长整型）。
 
 ### whasher —— 哈希与校验和
 

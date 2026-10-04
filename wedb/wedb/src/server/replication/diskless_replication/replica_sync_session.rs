@@ -166,6 +166,18 @@ impl DisklessSyncSession {
     }
   }
 
+  /// 会话取消收尾（[`SyncSessionGuard`](super::replication_sync_manager::
+  /// SyncSessionGuard) Drop 单点，同步、幂等）：预锁段回挂的钉线驱动按实例
+  /// 匹配出册——已被 begin_aof_sync 原地置换或 set_status(FAILED) 摘除即
+  /// 零操作，与两条正常臂同一实例匹配通道，绝不误删同节点新驱动（C#
+  /// `AofSyncDriverStore.TryRemove(AofSyncDriver)` 引用匹配语义）。退钉即
+  /// 向背压闸门重报水位，截断线/闸门不被幽灵钉线拉死
+  pub(super) fn cancel_cleanup(&self) {
+    if let Some(driver) = self.aof_sync_driver.lock().clone() {
+      self.driver_store.try_remove_current(&driver);
+    }
+  }
+
   /// 当前状态快照（C# GetSyncStatusInfo）
   pub fn status_info(&self) -> SyncStatusInfo {
     self.status.lock().clone()

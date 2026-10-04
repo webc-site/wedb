@@ -10,6 +10,16 @@
 //! `sync_in_progress` 标志：批量开窗（begin_sync_batch）后新 attach 入册拒绝
 //! （C# 读锁排队失败 → RESP_ERR_CREATE_SYNC_SESSION_ERROR 同位语义）。
 //!
+//! 取消安全（C# 的 cts 撤销链 / try-finally 在 rust 的承接形态）：compio
+//! thread-per-core 下副本断连 → 网络泵慢臂 RaceEnd::Disposed → 会话编排
+//! 执行体 future 被丢弃，错误臂清理代码不可达。本模块以三枚 RAII Drop 守卫
+//! 承接取消臂清理，与正常臂既有清理通道幂等共存（disarm 位 / 实例匹配）：
+//! - [`SyncBatchGuard`]（批量开窗）：未收敛会话全体判败唤醒等待者 + 清册关窗；
+//! - [`SyncSessionGuard`]（会话登记）：钉线出册 + 册子摘除本会话 +
+//!   册空复位批量窗标志；
+//! - [`PinDriversGuard`](self::PinDriversGuard)（批量预锁钉线）：逐驱动实例
+//!   匹配出册，AOF 截断线与背压闸门不被幽灵位点永久钳制。
+//!
 //! leader 编排链（C# ReplicationSyncDriverAsync → MainStreamingSnapshotDriver-
 //! Async → TakeStreamingCheckpointAsync → BeginAofSyncAsync）在 rust 的口径
 //! 差异：
@@ -55,6 +65,9 @@ use crate::{
     },
   },
 };
+
+/// 取消臂判败文案（[`SyncBatchGuard`] Drop 单点）
+const BATCH_CANCELLED_MSG: &str = "diskless sync batch cancelled";
 
 /// 会话册子内部状态（C# ReplicaSyncSessionTaskStore 数组 + Replication-
 /// SyncManager syncInProgress / NumSessions / Sessions）
@@ -156,7 +169,11 @@ impl ReplicationSyncManager {
   /// TryWriteLock + NumSessions/Sessions 取数：GetNumSessions 唯一生产
   /// 消费点即 ReplicationSyncManager.cs:185 开窗取数，rust 以会话快照
   /// 的 len 承接同读数；开窗后新 attach 入册拒绝）
-  fn begin_sync_batch(&self) -> Result<Vec<Arc<DisklessSyncSession>>, ReplicationError> {
+  ///
+  /// 开窗即持 [`SyncBatchGuard`]：正常臂 disarm 后显式清册关窗，future
+  /// 取消臂由 Drop 兜底（未收敛会话判败 + 清册关窗），sync_in_progress
+  /// 不再恒真
+  fn begin_sync_batch(&self) -> Result<SyncBatchGuard<'_>, ReplicationError> {
     let mut inner = self.inner.lock();
     if inner.sync_in_progress {
       // C# 同位异常路径："Failed to acquire write syncInProgress lock!"——
@@ -166,7 +183,7 @@ impl ReplicationSyncManager {
       ));
     }
     inner.sync_in_progress = true;
-    Ok(inner.sessions.clone())
+    Ok(SyncBatchGuard::new(self, inner.sessions.clone()))
   }
 
   /// 清册并关窗（C# GetSessionStore.Clear + syncInProgress.WriteUnlock）
@@ -174,6 +191,24 @@ impl ReplicationSyncManager {
     let mut inner = self.inner.lock();
     inner.sessions.clear();
     inner.sync_in_progress = false;
+  }
+
+  /// 会话取消收尾（[`SyncSessionGuard`] Drop 单点）：钉线出册（会话侧实例
+  /// 匹配通道，被置换/摘除即零操作）→ 册子摘除本会话 → 册空复位批量窗标志。
+  /// 三步均缺席安全/实例匹配，正常臂（批窗 clear_sessions、begin_aof_sync
+  /// 原地置换、set_status(FAILED) 实例摘除）先行收敛后全为零操作，故守卫
+  /// 无需 disarm 位；future 取消时三步补齐——修复 leader 编排 future 被
+  /// 丢弃后 sync_in_progress 恒真、sessions 残留、diskless attach 永久被拒
+  /// 的取消泄漏
+  fn cancel_session(&self, session: &DisklessSyncSession) {
+    session.cancel_cleanup();
+    let mut inner = self.inner.lock();
+    inner
+      .sessions
+      .retain(|s| s.origin_node_id() != session.origin_node_id());
+    if inner.sessions.is_empty() {
+      inner.sync_in_progress = false;
+    }
   }
 
   /// 会话驱动主循环：leader 攒批等待 → 主快照扇出 → 本会话完成等待 →
@@ -188,6 +223,10 @@ impl ReplicationSyncManager {
     assets: &PrimaryReplicationAssets,
     local_node_id: u128,
   ) -> Result<AofAddress, ReplicationError> {
+    // 会话登记守卫（入册 → 本任务收尾全程持有）：慢路径终局或会话断链
+    // future 取消（副本断连 → 网络泵慢臂 RaceEnd::Disposed）两路都补齐
+    // 取消清理，见 [`Self::cancel_session`]
+    let _session_guard = SyncSessionGuard::new(self, session);
     // 攒批窗口：仅 leader 等待（C# :127-129，等待窗口让其他副本 attach 入册
     // 同批；窗口时长经 CONFIG REPL_DISKLESS_SYNC_DELAY 运行时可调）
     let diskless_sync_delay = provider.replica_diskless_sync_delay();
@@ -246,15 +285,16 @@ impl ReplicationSyncManager {
     assets: &PrimaryReplicationAssets,
     local_node_id: u128,
   ) -> Result<(), ReplicationError> {
-    let sessions = self.begin_sync_batch()?;
+    let mut batch = self.begin_sync_batch()?;
+    let sessions = batch.sessions();
     let result = self
-      .stream_sync(provider, rm, assets, local_node_id, &sessions)
+      .stream_sync(provider, rm, assets, local_node_id, sessions)
       .await;
     // 终态收敛（C# :210-219：成功全员 SUCCESS、异常全员 FAILED——已有
     // 终态的会话（prepare 段判败 / PartialResync 免快照放行）不覆写）
     match &result {
       Ok(()) => {
-        for s in &sessions {
+        for s in sessions {
           if s.in_progress() {
             s.set_status(SyncStatus::Success, None);
           }
@@ -263,7 +303,7 @@ impl ReplicationSyncManager {
       Err(e) => {
         log::error!("MainStreamingSnapshotDriverAsync faulted: {e}");
         let msg = e.to_string();
-        for s in &sessions {
+        for s in sessions {
           if !s.is_terminal() {
             s.set_status(SyncStatus::Failed, Some(msg.clone()));
           }
@@ -275,7 +315,9 @@ impl ReplicationSyncManager {
     // [`set_status`](super::replica_sync_session::DisklessSyncSession::set_status)
     // 一处（按会话持有实例匹配退场），批内另立按节点 id 的第二注销通道会误删
     // 同键重挂的新驱动
-    // finally 清册关窗（C# :220-234 GetSessionStore.Clear + 释放锁 + 信号）
+    // finally 清册关窗（C# :220-234 GetSessionStore.Clear + 释放锁 + 信号）：
+    // 先解除批窗守卫（取消臂让位既有显式收口，防双重清理），清册仍走本单点
+    batch.disarm();
     self.clear_sessions();
     result
   }
@@ -409,7 +451,12 @@ impl ReplicationSyncManager {
     // 防泄漏；成功会话的钉线由 begin_aof_sync 就地以恢复位点原地原子
     // 更新置换
     let allow_data_loss = provider.allow_data_loss();
-    loop {
+    // 预锁守卫（快照扇出全程持有，见 PinDriversGuard 文档）：钉线驱动无
+    // wire、is_connected 恒真，throttle_all 周期臂永不收割——future 在扇出
+    // 窗内被丢弃即由守卫逐实例出册，截断线/背压闸门不被幽灵位点永久钳制。
+    // 正常臂扇出返回即 disarm：Ok 批内钉线按设计留册待逐会话 begin_aof_sync
+    // 原地置换；Err 批内会话已经上方 FAILED 臂逐实例摘除，守卫退场均零操作
+    let mut pin_guard = loop {
       let min_serviceable = AofAddress::create(sublog_count, wal.begin_address() as i64);
       let pin_drivers: Vec<Arc<AofSyncDriver>> = full_sessions
         .iter()
@@ -429,12 +476,14 @@ impl ReplicationSyncManager {
         .aof_sync_driver_store
         .try_add_replication_drivers(&pin_drivers, allow_data_loss)
       {
-        break;
+        break PinDriversGuard::new(&rm.aof_sync_driver_store, pin_drivers);
       }
       yield_now().await;
-    }
+    };
 
-    run_snapshot_fanout(provider, local_node_id, full_sessions, assets).await
+    let fanout = run_snapshot_fanout(provider, local_node_id, full_sessions, assets).await;
+    pin_guard.disarm();
+    fanout
   }
 }
 
@@ -443,6 +492,137 @@ impl Default for ReplicationSyncManager {
     Self {
       inner: Mutex::new(SyncManagerInner::default()),
       scan_gate: RwLock::new(None),
+    }
+  }
+}
+
+/// 批量窗守卫（对标 C# MainStreamingSnapshotDriverAsync 的 try/finally
+/// `GetSessionStore.Clear + syncInProgress.WriteUnlock`）：开窗（
+/// [`ReplicationSyncManager::begin_sync_batch`]）→ 收尾全程持有。
+///
+/// 双臂分工——
+/// - 正常臂：终态收敛后 `disarm`，清册关窗仍走 C# 对位的
+///   `clear_sessions` 显式单点，行为零变化；
+/// - 取消臂（future 未经 disarm 丢弃，副本断连 → 网络泵慢臂
+///   RaceEnd::Disposed）：Drop 先令批内未收敛会话全体判败（C# :210-219
+///   异常臂 SetStatus(FAILED) 同位——终态广播唤醒 follower 侧
+///   wait_for_sync_completion 等待者按 FAILED 判败收场，等待链不悬死），
+///   再清册关窗，`sync_in_progress` 不再恒真。
+///
+/// 清理动作全为同步方法（会话状态机锁 + 事件广播 + 册子锁），Drop 内安全。
+pub struct SyncBatchGuard<'a> {
+  mgr: &'a ReplicationSyncManager,
+  sessions: Vec<Arc<DisklessSyncSession>>,
+  disarmed: bool,
+}
+
+impl<'a> SyncBatchGuard<'a> {
+  /// 持守卫（生产开窗统一走 [`ReplicationSyncManager::begin_sync_batch`]，
+  /// 本构造口供测试与编排直构）
+  pub fn new(mgr: &'a ReplicationSyncManager, sessions: Vec<Arc<DisklessSyncSession>>) -> Self {
+    Self {
+      mgr,
+      sessions,
+      disarmed: false,
+    }
+  }
+
+  /// 批内会话快照（开窗时点在册全体，扇出/终态收敛的数据面）
+  pub fn sessions(&self) -> &[Arc<DisklessSyncSession>] {
+    &self.sessions
+  }
+
+  /// 正常收尾解除守卫（清册关窗交还既有显式收口，防双重清理）
+  pub fn disarm(&mut self) {
+    self.disarmed = true;
+  }
+}
+
+impl Drop for SyncBatchGuard<'_> {
+  fn drop(&mut self) {
+    if self.disarmed {
+      return;
+    }
+    // 取消臂：未收敛会话全体判败（终态不覆写，与正常臂同判据），随后清册
+    // 关窗——会话已判败/册子已清时为零操作，与正常臂幂等共存
+    let msg = BATCH_CANCELLED_MSG.to_string();
+    for s in &self.sessions {
+      if !s.is_terminal() {
+        s.set_status(SyncStatus::Failed, Some(msg.clone()));
+      }
+    }
+    self.mgr.clear_sessions();
+  }
+}
+
+/// 会话登记守卫（对标 C# AddReplicaSyncSession 入册 +
+/// ReplicationSyncDriverAsync 任务体 finally）：入册会话的编排任务全程
+/// 持有，Drop 转调 [`ReplicationSyncManager::cancel_session`]。
+///
+/// 无 disarm 位：清理三步（钉线实例匹配出册、册子 retain 摘除、册空复位
+/// 批量窗标志）在正常臂先行收敛后全为零操作，按构造幂等；future 取消时
+/// 三步补齐。
+pub struct SyncSessionGuard<'a> {
+  mgr: &'a ReplicationSyncManager,
+  session: &'a DisklessSyncSession,
+}
+
+impl<'a> SyncSessionGuard<'a> {
+  /// 持守卫（生产挂点为
+  /// [`replication_sync_driver`](ReplicationSyncManager::replication_sync_driver)
+  /// 入口，本构造口供测试直构）
+  pub fn new(mgr: &'a ReplicationSyncManager, session: &'a DisklessSyncSession) -> Self {
+    Self { mgr, session }
+  }
+}
+
+impl Drop for SyncSessionGuard<'_> {
+  fn drop(&mut self) {
+    self.mgr.cancel_session(self.session);
+  }
+}
+
+/// 批量预锁钉线守卫（对标 C# PrepareForSyncAsync #region pauseAofTruncation
+/// 的驱动在册期）：stream_sync 预锁入库 → 快照扇出全程持有。
+///
+/// 取消臂（future 未经 disarm 丢弃）逐驱动实例匹配出册——与
+/// set_status(FAILED) / begin_aof_sync 原地置换同一实例匹配通道（C#
+/// `AofSyncDriverStore.TryRemove(AofSyncDriver)` 引用匹配语义），绝不误删
+/// 同节点已被置换的新驱动；钉线驱动无 wire、is_connected 恒真，
+/// throttle_all 周期臂永不收割，不出册即 previous_address / shipped 水位
+/// 恒钉 begin，safe_truncate_aof 与背压闸门被永久钳制。
+///
+/// 正常臂 disarm：Ok 批内钉线按设计留册（快照段与 AOF 衔接段间的截断钳制
+/// 空档零容忍），Err 已由主驱动 FAILED 臂逐实例摘除，守卫退场均零操作。
+pub struct PinDriversGuard<'a> {
+  store: &'a AofSyncDriverStore,
+  drivers: Vec<Arc<AofSyncDriver>>,
+  disarmed: bool,
+}
+
+impl<'a> PinDriversGuard<'a> {
+  /// 持守卫（生产挂点为 stream_sync 预锁段，本构造口供测试直构）
+  pub fn new(store: &'a AofSyncDriverStore, drivers: Vec<Arc<AofSyncDriver>>) -> Self {
+    Self {
+      store,
+      drivers,
+      disarmed: false,
+    }
+  }
+
+  /// 正常收尾解除守卫（钉线留册/摘除交还既有显式通道，防双重清理）
+  pub fn disarm(&mut self) {
+    self.disarmed = true;
+  }
+}
+
+impl Drop for PinDriversGuard<'_> {
+  fn drop(&mut self) {
+    if self.disarmed {
+      return;
+    }
+    for driver in &self.drivers {
+      self.store.try_remove_current(driver);
     }
   }
 }

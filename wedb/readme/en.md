@@ -214,11 +214,10 @@ graph TD
   whlog --> wbase
   windex --> whasher
   windex --> wbase
-  wval --> wrecord
   wdev --> wbase
   wepoch --> whasher
   wrecord --> wbase
-  wreviv --> wrecord
+  wreviv --> wbase
 ```
 
 A write flows from session to disk as follows: locate the hash tag, claim memory in the HybridLog mutable region (reviving freed slots when enabled), stage the page in the circular buffer, then flush sealed pages to the device under epoch protection. GC and checkpoints run as side channels over the same device.
@@ -305,7 +304,7 @@ The lists below mirror each crate's real crate-root `pub use` surface; internal 
 
 ### wbase — L0 primitives
 
-Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), `align` (64B cacheline / sector math), `backoff` (adaptive retry state machine), `base32`, `buf`, `convert`, `crc` (`crc32fast`), `crc64`, `error`, `future`, `glob`, `group-commit`, `hash`, `hash_slot` (slot routing), `hex`, `map` / `set` (`papaya` + `gxhash` concurrent collections), `num`, `pool` (`BufferPool` tiered Direct I/O sector-aligned pools, `AlignedBuf` sector-aligned buffers, the fixed-size network `LimitedFixedBufferPool` with RAII handles `PooledBuffer` / `PooledRefBuffer`; mirroring Tsavorite `core/Utilities` and `libs/common/Memory`), `simd`, `store_type`, `striped` (lock striping), `thread` (TLS thread identity), `time` (`coarsetime` helpers, `now_ms`), `varint` (OPPV varints).
+Feature-gated modules, no `full` feature: `addr` (48-bit `LogAddress` masking), `align` (64B cacheline / sector math), `ascii` (ASCII normalization and folding), `backoff` (adaptive retry state machine), `base32`, `buf`, `cfg` (cross-crate base config), `convert`, `crc` (`crc32fast`), `crc64`, `endpoint` (endpoint classification), `error`, `future`, `glob`, `group-commit`, `hash`, `hash_slot` (slot routing), `heap` (collection heap-memory accounting constants), `hex`, `keyfmt` (log key preview), `map` / `set` (`papaya` + `gxhash` concurrent collections), `ns_prefix` (session namespace prefix codec), `num`, `pool` (`BufferPool` tiered Direct I/O sector-aligned pools, `AlignedBuf` sector-aligned buffers, the fixed-size network `LimitedFixedBufferPool` with RAII handles `PooledBuffer` / `PooledRefBuffer`; mirroring Tsavorite `core/Utilities` and `libs/common/Memory`), `primed` (TLS append-read buffer priming contract), `simd`, `store_type`, `striped` (lock striping), `supervise` (background task panic supervision), `thread` (TLS thread identity), `time` (`coarsetime` helpers, `now_ms`), `varint` (OPPV varints) (`BufferPool` tiered Direct I/O sector-aligned pools, `AlignedBuf` sector-aligned buffers, the fixed-size network `LimitedFixedBufferPool` with RAII handles `PooledBuffer` / `PooledRefBuffer`; mirroring Tsavorite `core/Utilities` and `libs/common/Memory`), `simd`, `store_type`, `striped` (lock striping), `thread` (TLS thread identity), `time` (`coarsetime` helpers, `now_ms`), `varint` (OPPV varints).
 
 ### whasher — hashing and checksums
 
