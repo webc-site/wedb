@@ -5,7 +5,6 @@
 //!
 //! 在 garnet 中的相对路径: libs/server/Storage/Session/ObjectStore/SetObject.cs（Set 原语与随机成员）
 
-use fastrand::Rng;
 use wresp::resp_memory_writer::RespWriter;
 
 use super::set_object::SetObject;
@@ -118,28 +117,40 @@ impl SetObject {
     if count >= 1 {
       // POP this number of random fields
       let count_parameter = (count as usize).min(self.set.len());
-      let mut rng = Rng::new();
 
       // Write the size of the array reply
       write_set_length(output, count_parameter, resp_protocol_version);
 
-      for _ in 0..count_parameter {
-        // Generate a new index based on the elements left in the set
-        if self.set.is_empty() {
-          break;
-        }
-        let index = rng.usize(..self.set.len());
-        let Some(item) = self.set.iter().nth(index).cloned() else {
-          break;
-        };
-        self.set.remove(&item);
-        self.update_size(&item, false);
-        RespWriter::new_ref(output.payload).write_bulk_string(&item);
-        count_done += 1;
+      // 采样域借用视图一次构建 + pick_k_random_indexes(distinct) 一次产出互异
+      // 下标：消除 C# 形态「每弹一次 Set.ElementAt(index)」的 O(count·n) 线性
+      // 扫描（compio thread-per-core 下单命令独占工作核）；不放回均匀采样与
+      // 逐弹抽取同为均匀 k-子集，分布等价。k 已钳 min(count, n)，待删收集与
+      // 对象本体同阶（与原逐弹 cloned 同量）
+      let view: Vec<_> = self.set.iter().collect();
+      let mut popped: Vec<Vec<u8>> = Vec::with_capacity(count_parameter);
+
+      pick_k_random_indexes(
+        self.set.len(),
+        count_parameter,
+        fastrand::i32(..),
+        true,
+        |index| {
+          let Some(item) = view.get(index) else {
+            return;
+          };
+          RespWriter::new_ref(output.payload).write_bulk_string(item);
+          popped.push((*item).clone());
+        },
+      );
+
+      // 释放视图后统一剔除（互异下标 → 互异成员，remove 全命中）
+      for item in &popped {
+        self.set.remove(item);
+        self.update_size(item, false);
       }
 
       // C#: countDone += count - countDone → result1 恒为 count
-      count_done += i64::from(count) - count_done;
+      count_done = i64::from(count);
     } else if count == NO_COUNT {
       // no count parameter is present, we just pop and return a random item of the set
       if !self.set.is_empty() {
@@ -195,9 +206,13 @@ impl SetObject {
       // Write the size of the array reply
       write_set_length(output, count_parameter, resp_protocol_version);
 
+      // 采样域借用视图一次构建（n 长度、与对象本体同阶，不随客户端 k 增长）：
+      // 消除逐下标 iter().nth 的 O(index) 线性扫描（k 个下标合计 O(k·n)，
+      // compio thread-per-core 下单命令独占工作核），sink 内 O(1) 直取；
       // 下标流式 sink 直写应答（头已声明，逐下标产出零存储）
+      let view: Vec<_> = self.set.iter().collect();
       pick_k_random_indexes(self.set.len(), count_parameter, seed, true, |index| {
-        let Some(element) = self.set.iter().nth(index) else {
+        let Some(element) = view.get(index) else {
           return;
         };
         RespWriter::new_ref(output.payload).write_bulk_string(element);
@@ -224,10 +239,12 @@ impl SetObject {
         // Write the size of the array reply
         RespWriter::new_ref(output.payload).write_array_length(count_parameter);
 
+        // 采样域借用视图一次构建（同正 count 臂，消除逐下标 nth 的 O(k·n) 放大）；
         // 放回臂下标流式产出零存储：|count| 与集合基数脱钩，预分配即 GB 级
         // 单命令分配面（C# new int[countParameter] 为连接级 OOM），严禁回改
+        let view: Vec<_> = self.set.iter().collect();
         pick_k_random_indexes(self.set.len(), count_parameter, seed, false, |index| {
-          let Some(element) = self.set.iter().nth(index) else {
+          let Some(element) = view.get(index) else {
             return;
           };
           RespWriter::new_ref(output.payload).write_bulk_string(element);

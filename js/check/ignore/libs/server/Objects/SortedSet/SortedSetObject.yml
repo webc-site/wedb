@@ -27,3 +27,13 @@
     C# :349 本体即为空（{ }），是常驻对象层的 IDisposable 形状要求；rust 信封
     无常驻对象层与后台线程，资源随所有权析构释放，物理剔除走读路径 purge
     （同口径见 task/done/my-wcol-count-name-split.md）
+- 文件:
+    - libs/server/Objects/SortedSet/SortedSetObject.cs:
+        - ElementAt
+  理由: >-
+    C# :793 的逐下标定位是 ZRANDMEMBER 的 O(index) 线性扫描面（Dictionary 上
+    Enumerable.ElementAt），唯一消费点即随机采样；rust 侧
+    sorted_set_object_impl.rs:sorted_set_random_member 已改 n 长借用视图一次
+    构建 + sink 内 O(1) 直取（task/ing/wcol-random-member-element-at-
+    linear-scan-quadratic-core-stall.md），O(k·n) 计算放大收口后零消费死代码
+    删除（hash 侧 element_at 因无 count 单枚臂仍消费而保留）

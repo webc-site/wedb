@@ -230,10 +230,15 @@ impl HashObject {
         },
       );
 
+      // 采样域借用视图一次构建（n 长度、与对象本体同阶，不随客户端 k 增长）：
+      // 消除逐下标 element_at 的 O(index) 线性扫描（k 个下标合计 O(k·n)，
+      // compio thread-per-core 下单命令独占工作核），sink 内 O(1) 直取条目
+      let view: Vec<_> = self.hash.iter().collect();
+
       // 下标流式 sink 直写应答：负 count 的 |k| 与基数脱钩，放回臂零存储
       //（C# new int[indexCount] 为连接级 OOM 面，预分配即 GB 级单命令分配）
       pick_k_random_indexes(count, index_count, seed, count_parameter > 0, |index| {
-        let Some((key, value)) = self.element_at(index) else {
+        let Some((key, value)) = view.get(index) else {
           return;
         };
 
