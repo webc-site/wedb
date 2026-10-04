@@ -24,6 +24,7 @@ parking_lot.workspace = true
 sha1_smol.workspace = true
 sonic-rs.workspace = true
 wbase = { workspace = true, features = ["convert", "num", "map", "time", "hex"] }
+wext_json = { version = "0.1.0", path = "../wext_json" }
 wresp.workspace = true
 
 [dev-dependencies]

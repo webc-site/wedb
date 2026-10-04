@@ -20,6 +20,8 @@
 //! 多键读臂 error_element_to_nil 协议整形不变（wnode/tests/
 //! json_corrupt_payload_fail_fast.rs 端到端钉死）。
 
+use std::thread::Builder;
+
 use wcustom::CustomObjectFns;
 use wext_json::JsonCommands;
 
@@ -32,12 +34,18 @@ const DECODE_FRAME: &[u8] = b"-ERR JSON object decode failed\r\n";
 
 /// 合法标签 + 非 JSON 字节信封内层载荷（UTF-8 裸词 / 截断 JSON / 非法 UTF-8
 /// 二进制 / 尾部垃圾——from_slice/parse_dom 各拒收形态；空载荷不在其列，
-/// 空载荷 = 建空对象合法语义非折损点）
+/// 空载荷 = 建空对象合法语义非折损点）+ 深嵌套形（§206 深度安全门拒收，
+/// 登记全文见 doc/zh/deviations.md §206：300 层超 MAX_JSON_DEPTH=255 门、
+/// 20000 层大深度同门；门先于 sonic 递归，拒臂零递归任栈安全）
+const DEEP_OPEN_300: &[u8] = &[b'['; 300];
+const DEEP_OPEN_20000: &[u8] = &[b'['; 20_000];
 const CORRUPT_PAYLOADS: &[&[u8]] = &[
   b"hello",
   br#"{"a": "#,
   b"\xff\xfe\x01\x02",
   br#"{"a":1}trailing"#,
+  DEEP_OPEN_300,
+  DEEP_OPEN_20000,
 ];
 
 /// reader 臂 fail-fast：回 false、精确错误帧、绝不再现 nil 折叠
@@ -255,4 +263,49 @@ fn legal_payload_family_byte_regression() {
     "JSON.SET corrupt 载荷 updater 须回 false（既有先例）"
   );
   assert_eq!(out, DECODE_FRAME, "JSON.SET 同串错误帧不回退");
+}
+
+/// §206 深度门值侧钉形：JSON.SET need_initial_update 对超门 val 拒收（回
+/// false 放弃建键），越门错误与解析失败同帧（Error::SyntaxError →
+/// "-ERR syntax error"）；门在解析入口先于 sonic 递归，本测试任栈安全
+#[test]
+fn depth_gate_rejects_overshoot_set_value_with_parse_failure_frame() {
+  let args: [&[u8]; 2] = [b"$", DEEP_OPEN_300];
+  let mut out = Vec::new();
+  assert!(
+    !(JsonCommands::JSON_SET.need_initial_update)(&args, &mut out, VER),
+    "JSON.SET 超门 val 须拒收（§206 深度门）"
+  );
+  assert_eq!(
+    out, b"-ERR syntax error\r\n",
+    "越门错误帧须同解析失败形（SyntaxError）"
+  );
+}
+
+/// §206 深度门界内形：255 层数组合法深载荷（恰在 MAX_JSON_DEPTH=255 含边上）
+/// 全链通过，JSON.GET reader 端到端精确帧。解析/序列化 255 层递归在缺省测试
+/// 线程栈有崩阈（约 180–200，同 json_deviation_locks_tests 深链先例），大栈
+/// 线程执行规避**崩溃面**（另轴，非契约放宽）
+#[test]
+fn depth_255_legal_payload_roundtrips_exact_frame() {
+  let child = Builder::new()
+    .stack_size(256 * 1024 * 1024)
+    .spawn(|| {
+      let mut payload = vec![b'['; 255];
+      payload.push(b'1');
+      payload.resize(511, b']');
+      let mut out = Vec::new();
+      assert!(
+        (JsonCommands::JSON_GET.reader)(&payload, &[], &mut out, VER),
+        "255 层界内载荷 reader 须回 true"
+      );
+      let mut want = format!("${}\r\n", payload.len()).into_bytes();
+      want.extend_from_slice(&payload);
+      want.extend_from_slice(b"\r\n");
+      assert_eq!(out, want, "255 层界内载荷应答帧走样");
+    })
+    .expect("spawn 大栈线程失败");
+  child
+    .join()
+    .expect("255 层界内须全链通过；线程 panic 即 §206 门界走样（255 须含边收）");
 }

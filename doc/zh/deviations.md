@@ -585,6 +585,11 @@
 - 符号锚：GarnetSessionMetrics（字段/宏表已裁）、garnet_info_metrics INFO 表、txn_resp_commands.rs 裁剪自注
 - 来源：wedb/wmetric/src/garnet_session_metrics.rs 与 wmetric/src/info/garnet_info_metrics.rs 注释锚（确认 agent 审查轮登记）
 
+### [§206] wext_json JSON 深度安全门 MAX_JSON_DEPTH=255（sonic Value 快路栈溢出 DoS 修复，非语义放宽）
+- 判据：sonic-rs 0.5.10 `Value` 快路（`parse_dom → dispatch_value ↔ parse_array/parse_object` 互递归）不带 `src/serde/de.rs:23` MAX_ALLOWED_DEPTH=255 门（该门仅挂通用 `Deserializer::deserialize_any` 递归），2MB 栈（compio worker 缺省）约 16000 层（≈16KB `[[[[...` 载荷）即栈溢出进程 abort（不可 catch）；JSON 写读全链（值侧 parse_dom：JSON.SET 建根门与 SET 通用臂、ARRAPPEND/ARRINSERT/ARRINDEX 值参；八处 from_slice 装载：set_get/common/mutate/object/resp_encode）与 JsonPath 过滤器数组字面量（json_path/parser.rs try_parse_array_literal 的 `sonic_rs::from_str::<Value>`）及 wlua cjson.decode（functions/cjson.rs 同快路，EVAL 可达）三面同根。修复为各解析入口 O(n) 单趟字节状态机预扫（wext_json check_depth，Normal/InString/InEscape 三态；UTF-8 自同步性保证 0x22/0x5C 判据不受多字节序列干扰），上限 MAX_JSON_DEPTH=255 与 sonic 通用路门值同值对齐——系安全修复非语义放宽：§122「宽向纯登记」自本条起收窄为 ≤255 接受面，§161「严禁按 C# 64 回改」语境不变（255 ≠ 64，非 C# MaxDepth 对位回改，严禁改 64，亦严禁拆门回无界接受）；越门错误与解析失败同形（Error::SyntaxError / wlua too-many-nested 错形）；GET 侧 sonic 序列化递归同根，存储值深度受写入侧本门约束，封住写入侧即封住序列化侧；wlua cjson.encode 既有 MAX_ENCODE_DEPTH=1000 门独立在位不动。旁路核清：RESTORE（network_restore）直插 DUMP 帧不解析 JSON，超深字节经后续访问 from_slice→parse_dom 同门 decode fail-fast；AOF 重放/检查点恢复为信封载荷通道（EnvelopeUpsert 原样物化），JSON 文本解析仅在访问面发生、同门承接；wresp try_import_resp_commands_data 吃构建期内嵌目录 JSON 且走 serde 通用路（自带 255 门），用户不可达；wext_json string.rs STRAPPEND 附加值为 `&str` 标量目标，容器形态即类型错拒，无递归面。
+- 符号锚：wext_json::json_object::MAX_JSON_DEPTH / check_depth / parse_dom、wext_json::json_path::parser::try_parse_array_literal、wlua::functions::cjson c_json_decode
+- 来源：第 14 轮审查实证（sonic-rs 0.5.10 value/de.rs parse_dom 互递归无门，2MB 栈 16000 层 abort）；wedb/wext_json/src/json_object.rs 与 wedb/wlua/src/functions/cjson.rs 注释锚（确认 agent 审查轮登记）
+
 ---
 
 ## 二、号位空缺清单（存在实证、判据正文不可回收）

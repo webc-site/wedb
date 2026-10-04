@@ -340,6 +340,14 @@ impl LuaRunnerFunctions {
     let buff = state.known_string_to_buffer(1).unwrap_or_default();
     let text = String::from_utf8_lossy(&buff);
 
+    // §206 深度安全门（doc/zh/deviations.md §206）：sonic `Value` 快路
+    //（from_str::<Value>）互递归无深度门，2MB 栈约 16000 层即栈溢出 abort；
+    // 先过 wext_json 单趟预扫（MAX_JSON_DEPTH=255，与 JSON 域写入侧同源
+    // 对齐），越门直接归 too-many-nested 错形（与 sonic 通用路 depth 错同归）
+    if wext_json::check_depth(text.as_bytes()).is_err() {
+      return lua_wrapped_error_view(state, 1, ConstantStrings::FOUND_TOO_MANY_NESTED);
+    }
+
     match sonic_rs::from_str::<sonic_rs::Value>(&text) {
       Ok(parsed) => Self::decode(state, &parsed),
       Err(e) => {
@@ -356,26 +364,20 @@ impl LuaRunnerFunctions {
   }
 
   /// 在 garnet 中的相对路径:libs/server/Lua/LuaRunner.Functions.cs:Decode
+  ///
+  /// 容器/标量三分派（C# 同形：JsonValue→DecodeValue、JsonArray→DecodeArray、
+  /// JsonObject→DecodeObject）。数组/对象元素亦须经本分派（C# DecodeArray/
+  /// DecodeObject 元素循环调 Decode），rust 旧形误接标量单点 decode_value，
+  /// 嵌套容器一律落 UNEXPECTED_JSON_VALUE_KIND——§206 深度门界内测试暴露的
+  /// 1:1 错位，随门收口复归 C# 形（嵌套解码深度受 sonic 侧 §206 门 ≤255 约束，
+  /// 本递归无新增崩面）。
   fn decode(state: &mut LuaState, node: &sonic_rs::Value) -> i32 {
     if node.is_object() {
       Self::decode_object(state, node)
     } else if node.is_array() {
       Self::decode_array(state, node)
-    } else if node.is_null() {
-      state.push_nil();
-      1
-    } else if let Some(boolean) = node.as_bool() {
-      state.push_boolean(boolean);
-      1
-    } else if let Some(number) = node.as_f64() {
-      state.push_number(number);
-      1
-    } else if let Some(text) = node.as_str() {
-      state.push_buffer(text.as_bytes());
-      1
     } else {
-      log::error!("Unexpected json node type");
-      lua_wrapped_error_view(state, 1, ConstantStrings::UNEXPECTED_JSON_VALUE_KIND)
+      Self::decode_value(state, node)
     }
   }
 
@@ -407,8 +409,8 @@ impl LuaRunnerFunctions {
     let table_index = state.get_top() as i32;
 
     for (ix, item) in items.iter().enumerate() {
-      // Places item on the stack
-      let r = Self::decode_value(state, item);
+      // Places item on the stack（容器/标量经 decode 分派，C# Decode(item) 同形）
+      let r = Self::decode(state, item);
       if r != 1 {
         // Propagate error return
         return r;
@@ -434,8 +436,8 @@ impl LuaRunnerFunctions {
       // Decode key to string
       state.push_buffer(key.as_bytes());
 
-      // Decode value
-      let r = Self::decode_value(state, value);
+      // Decode value（容器/标量经 decode 分派，C# Decode(value) 同形）
+      let r = Self::decode(state, value);
       if r != 1 {
         return r;
       }

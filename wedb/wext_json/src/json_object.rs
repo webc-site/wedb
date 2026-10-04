@@ -67,24 +67,89 @@ pub const fn heap_estimate(_payload: &[u8]) -> i64 {
 /// `Deserializer` 手工路径缺 `sonic_rs::from_slice` 收尾的两步校验，此处补齐：整串
 /// UTF-8 校验（否则串内非法字节被静默替换）与尾部垃圾拒收（`parse_trailing`）。
 ///
-/// 解析深度唯一承载说明（勿在此另立深度门或散落裸数字）：wext_json 全链无独立
-/// 深度裁决，载荷嵌套深度是否可解析完全由本漏斗的 sonic `Value` 装载承载。事实
-/// 单源：`sonic_rs::Value` 的 `Deserialize`（registry sonic-rs 0.5.10
+/// 解析深度裁决说明（勿散落第二处裸数字）：载荷嵌套深度的接受面上限由
+/// [`check_depth`] 预扫单点承载，上限 [`MAX_JSON_DEPTH`] = 255 与 sonic 通用路
+/// `src/serde/de.rs:23` 的 `MAX_ALLOWED_DEPTH = u8::MAX` 同值对齐。事实单源：
+/// `sonic_rs::Value` 的 `Deserialize`（registry sonic-rs 0.5.10
 /// `src/value/de.rs:62` `deserialize_newtype_struct(TOKEN, ValueVisitor)`）走原生
-/// DOM 快路，**绕过** `src/serde/de.rs:23` 的 `MAX_ALLOWED_DEPTH = u8::MAX = 255`
-/// 门（该门仅挂通用 `Deserializer::deserialize_any` 的 visit_seq/visit_map 递归，
-/// Value 快路不经由），实测本漏斗对 255/256 乃至数千层对象/数组载荷均正常返回。
-/// 故切勿误信「rust 侧深度上限是 255」而据此写死数字或预扫；C# 侧
-/// （`garnet/modules/GarnetJSON/GarnetJsonObject.cs` 四处 `JsonNode.Parse`，默认
-/// MaxDepth=64，>64 层抛 JsonException 收错误帧）与 rust 宽接受之间的 >64 层分叉
-/// 系登记内有意宽向裁量，详见 doc/zh/deviations.md §161；**严禁按 C# 64 在本 SET/
-/// GET 热路径加 O(n) 深度预扫回改**（违零开销纪律，且无 255 门可依，属双错）。
+/// DOM 快路，**绕过**该 255 门（该门仅挂通用 `Deserializer::deserialize_any` 的
+/// visit_seq/visit_map 递归，Value 快路经由 `parse_dom → dispatch_value ↔
+/// parse_array/parse_object` 直接互递归无门），2MB 栈（compio worker 缺省）约
+/// 16000 层（≈16KB `[[[[...` 载荷）即栈溢出进程 abort（不可 catch），系安全面
+/// 缺陷非可接受形态——预扫门为 DoS 修复（登记 doc/zh/deviations.md §206），非
+/// 语义放宽：§122「宽向纯登记」自 §206 起收窄为 ≤255 接受面，§161「严禁按 C#
+/// 64 回改」语境不变（255 ≠ 64，非 C# MaxDepth 对位回改，严禁改 64）。越门
+/// 错误与解析失败同形（[`Error::SyntaxError`]）。GET 侧 `sonic_rs::to_vec` 与
+/// encode_val_resp 序列化递归同根：存储值深度受写入侧本门约束，封住写入侧即
+/// 封住序列化侧。
 pub(crate) fn parse_dom(payload: &[u8]) -> Result<Value> {
+  check_depth(payload)?;
   str::from_utf8(payload).map_err(|_| Error::SyntaxError)?;
   let mut de = Deserializer::from_slice(payload).use_rawnumber();
   let root = de.deserialize::<Value>()?;
   de.end()?;
   Ok(root)
+}
+
+/// JSON 文本嵌套深度安全门上限：与 sonic-rs 0.5.10 通用反序列化路径
+/// `MAX_ALLOWED_DEPTH = u8::MAX = 255` 同值（语义判据既有对齐面），非 C#
+/// JsonNode.Parse 缺省 MaxDepth=64（严禁按 64 回改，§161 语境见 parse_dom 注）
+pub(crate) const MAX_JSON_DEPTH: usize = 255;
+
+/// 深度预扫字节状态机三态闭环
+#[derive(Clone, Copy)]
+enum ScanState {
+  /// 结构字节域：`[`/`{` 计深、`]`/`}` 退深、`"` 入串
+  Normal,
+  /// 字符串字面量域：结构字节全部失义，唯 `\` 入转义、`"` 出串
+  InString,
+  /// 转义跟随位：吞过下一任意字节（含 `"`/`\` 字面值）后必回 InString
+  InEscape,
+}
+
+/// O(n) 单趟深度预扫：容器开括号深度超过 crate 内 `MAX_JSON_DEPTH`（255，与
+/// sonic 通用路 serde 门同值）即拒，越门错误与解析失败同形
+///（[`Error::SyntaxError`]）；超门即刻返回，恶意深载荷不全遍历。公开出口供
+/// 同走 sonic `Value` 快路的第二解析面（wlua cjson.decode）复用，勿在消费侧
+/// 另立拷贝扫描器。
+///
+/// 字节级扫描的 UTF-8 论证：UTF-8 多字节序列（U+0080 起）的全部字节高位恒置
+/// 1（首字节 `110xxxxx`/`1110xxxx`/…、续字节 `10xxxxxx`，均 ≥ 0x80），而引号
+/// 0x22 与反斜杠 0x5C 是 < 0x80 的 ASCII 位形，在多字节序列内部不可能出现
+///（UTF-8 自同步性）——故逐字节扫描不会把多字节字符误判为结构/引号字节。
+/// 引号域内转义闭环：`\"` 不提前出串、`\\` 吞过后续字面字节，状态转移矩阵
+/// 无非法态。
+pub fn check_depth(payload: &[u8]) -> Result<()> {
+  let mut depth: usize = 0;
+  let mut state = ScanState::Normal;
+  for &b in payload {
+    state = match state {
+      ScanState::InEscape => ScanState::InString,
+      ScanState::InString => match b {
+        b'\\' => ScanState::InEscape,
+        b'"' => ScanState::Normal,
+        _ => ScanState::InString,
+      },
+      ScanState::Normal => match b {
+        b'"' => ScanState::InString,
+        b'[' | b'{' => {
+          depth += 1;
+          if depth > MAX_JSON_DEPTH {
+            return Err(Error::SyntaxError);
+          }
+          ScanState::Normal
+        }
+        // 畸形截断载荷可致 close 多于 open，饱和退深防下溢（深度判据只看
+        // 开括号峰值，退深走向不影响裁决）
+        b']' | b'}' => {
+          depth = depth.saturating_sub(1);
+          ScanState::Normal
+        }
+        _ => ScanState::Normal,
+      },
+    };
+  }
+  Ok(())
 }
 
 /// 根路径判定单源：空路径 `""` 规范化为与 `"$"` 同形。
