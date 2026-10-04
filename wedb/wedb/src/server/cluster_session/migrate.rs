@@ -7,6 +7,7 @@ use compio::runtime::spawn;
 use parking_lot::Mutex;
 use wbase::{
   hash_slot::CLUSTER_SLOT_COUNT, hex::hex_u128, map::HashSet as GxHashSet, num::strict_i32,
+  supervise::supervise_task,
 };
 use wkv::WedbStore;
 use wnode::{range_index::RangeIndexMigrationReceiveState, resp::slow_path::SlowWait};
@@ -35,13 +36,18 @@ use crate::server::{
     chunk_reassembler::ChunkReassembler,
     frame_import::import_payload_slow,
     migrate_driver::{
-      run_keys_migration_driver, run_slots_migration_task, try_add_slots_migration_task,
+      abandon_migration_session, run_keys_migration_driver, run_slots_migration_task,
+      try_add_slots_migration_task,
     },
     migrate_session::MigrateTaskSpec,
     transfer_option::TransferOption,
   },
   worker::NodeRole,
 };
+
+/// SLOTS 后台驱动监督任务名（wbase supervise 快照单源，命名沿同族
+/// failover_replica / gossip_main 蛇形口径）
+const MIGRATE_SLOTS_TASK: &str = "migrate_slots";
 
 /// MIGRATE 解析错误（对标 libs/cluster/Session/MigrateCommand.cs:
 /// MigrateCmdParseState 可达子集；HOSTNAME_RESOLUTION_FAILED 无 DNS 解析
@@ -458,13 +464,28 @@ impl ClusterSession {
         match try_add_slots_migration_task(&self.cluster_provider, spec.clone(), &slots) {
           Ok(session) => {
             let store = self.cluster_provider.try_store();
+            // 后台驱动任务体经 wbase supervise_task 顶层监督（单点一次成型，
+            // 对标 failover_manager 会话体同款）：裸 detach 下 panic 即任务
+            // 静默终局，任务表条目泄漏（同槽再迁移恒 IOERR）；panic 臂补跑
+            // 同步面清理（键门放行 + 终态 Fail + 任务表摘除，幂等：正常臂
+            // 先行移除后零操作），留痕由 supervise log::error + 监督快照
+            // 计数承接
+            let panic_session = Arc::clone(&session);
             spawn(async move {
-              let Some(store) = store else {
-                log::error!("MIGRATE SLOTS 后台驱动无可用存储");
-                return;
+              let run = async move {
+                let Some(store) = store else {
+                  log::error!("MIGRATE SLOTS 后台驱动无可用存储");
+                  return;
+                };
+                if let Err(err) = run_slots_migration_task(store, spec, session).await {
+                  log::error!("MIGRATE SLOTS 后台驱动失败: {err}");
+                }
               };
-              if let Err(err) = run_slots_migration_task(store, spec, session).await {
-                log::error!("MIGRATE SLOTS 后台驱动失败: {err}");
+              if supervise_task(MIGRATE_SLOTS_TASK, run).await.is_err() {
+                if let Some(mgr) = panic_session.cluster_provider.migration_manager() {
+                  abandon_migration_session(&mgr, &panic_session);
+                }
+                log::error!("MIGRATE SLOTS 后台驱动 panic，已补清理任务表槽位");
               }
             })
             .detach();

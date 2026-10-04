@@ -39,7 +39,9 @@ pub mod slots;
 /// [`keys`] 的 run_keys_migration_driver 驱动
 mod keys_execute;
 
-pub use keys::{MigrateTransmitEnv, run_keys_migration_driver, transmit_keys};
+use std::sync::Arc;
+
+pub use keys::{KeysDriverGuard, MigrateTransmitEnv, run_keys_migration_driver, transmit_keys};
 #[doc(hidden)]
 pub use live_value::TEST_LIVE_VALUE_READ_HOOK;
 pub use live_value::{
@@ -48,6 +50,25 @@ pub use live_value::{
 };
 pub use phase::{connect_migrate_client, send_payload_and_wait};
 pub use slots::{RevivPauseGuard, run_slots_migration_task, try_add_slots_migration_task};
+
+use crate::server::migration::{
+  migrate_session::MigrateSession, migrate_state::MigrateState,
+  migration_manager::MigrationManager, sketch_status::SketchStatus,
+};
+
+/// 遗弃迁移会话同步面清理单点（KEYS 守卫取消臂 Drop 与 SLOTS 后台驱动监督
+/// panic 臂共用）：sketch 复位放行键级写门（Transmitting/Deleting 滞留即源端
+/// 键级写门关闭，默认 cluster_node_timeout 后转 ASK 写失败）+ 会话终态 Fail +
+/// 任务表摘除（槽位泄漏即同槽再迁移恒 IOERR）。
+///
+/// 全为同步方法（sketch/status 锁 + 册子锁），Drop/panic 臂内安全；幂等共存：
+/// recover/正常收口已先达时 sketch 复位与摘除天然零操作，status 与 recover
+/// 置 Fail 同值不产生观察窗（SyncBatchGuard 终态判据同口径）
+pub(crate) fn abandon_migration_session(mgr: &MigrationManager, session: &Arc<MigrateSession>) {
+  session.sketch.set_status(SketchStatus::Initializing);
+  *session.status.write() = MigrateState::Fail;
+  mgr.try_remove_migration_task_session(Arc::clone(session));
+}
 
 /// 迁移失败统一收口：recover 后直接 return Err（err 臂带 poisoned 判定，
 /// why 臂固定 false + InvalidArgument）

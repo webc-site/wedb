@@ -5,6 +5,7 @@
 
 use std::{sync::Arc, time::Duration};
 
+use compio::runtime::{Runtime, spawn};
 use wbase::map::HashSet;
 use wconn::record::{BatchItem, encode_migration_payload, send_chunked_record};
 use wdev::{Device, SegmentedDevice};
@@ -14,9 +15,10 @@ use wnode::{
 };
 
 use super::{
+  abandon_migration_session,
   keys_execute::execute_keys_migration,
   live_value::{LiveValue, probe_unsupported_keys, read_live_value},
-  phase::send_payload_and_wait,
+  phase::{rollback_abandoned_remote, send_payload_and_wait},
 };
 use crate::{
   client::GarnetClient,
@@ -25,6 +27,7 @@ use crate::{
     cluster_provider::ClusterProvider,
     migration::{
       migrate_session::{MigrateSession, MigrateTaskSpec},
+      migration_manager::MigrationManager,
       sketch::Sketch,
     },
     sync_transport::MAX_MIGRATION_BATCH_COUNT,
@@ -242,10 +245,74 @@ pub async fn run_keys_migration_driver(
     .try_add_migration_task(spec.clone(), slots.clone(), sketch)
     .ok_or_else(|| Error::InvalidArgument("创建迁移任务失败 (槽位冲突或超限)".into()))?;
 
-  // 3. 执行 + finally 移除任务
+  // 3. 执行 + finally 移除任务（对标 KEYS 分支 finally TryRemoveMigrationTask）；
+  //    取消安全：全程持 [`KeysDriverGuard`]，future 被泵侧丢弃时守卫取消臂
+  //    补齐同步面清理与远端回滚；正常臂 disarm 后交还既有显式收口，行为零变化
+  let mut guard = KeysDriverGuard::new(Arc::clone(&migration_mgr), Arc::clone(&session));
   let res = execute_keys_migration(&store, &spec, &session, keys).await;
+  guard.disarm();
   migration_mgr.try_remove_migration_task_session(Arc::clone(&session));
   res
+}
+
+/// KEYS 驱动取消安全守卫（对标 replication_sync_manager 的 SyncBatchGuard/
+/// PinDriversGuard 先例：Drop 内同步清理 + disarm 幂等共存）
+///
+/// 生产挂点：[`run_keys_migration_driver`] 注册任务后创建、正常臂（Ok/Err
+/// 同达）`disarm` 后交还既有显式收口（失败 recover 已由驱动链内
+/// try_recover_from_failure 收敛、finally TryRemoveMigrationTask 保持可见，
+/// C# KEYS 分支 finally 同位）。
+///
+/// 取消臂背景：KEYS 同步形态挂慢路径（cluster_session/migrate.rs
+/// pending_slow），发起客户端断连/CLIENT KILL/停机广播即被网络泵
+/// RaceEnd::Disposed 丢弃 future（future drop 即取消），裸顺序收尾不可达
+/// ——sketch 滞留 Transmitting/Deleting 源端键级写门关闭、任务表槽位泄漏
+/// （同槽再迁移恒 IOERR）、远端自动下发的 IMPORTING 无 recover 回滚（目标端
+/// 该槽持续 CLUSTERDOWN）、session.status 恒 Pending。C# 基线：BlockingWait
+/// 阻塞网络线程，断连不取消迁移，finally TryRemoveMigrationTask + recover
+/// 必达——本守卫即该必达面的 rust 投影：
+/// - 同步面（[`abandon_migration_session`]，全为同步方法，Drop 内安全）；
+/// - 异步面（[`rollback_abandoned_remote`]）：远端回滚是逐帧停等的网络操作，
+///   不可入 Drop——spawn 独立任务补跑。spawn 上下文论证：future 仅在泵
+///   poll（RaceEnd::Disposed 臂）或会话收口丢弃，均在 compio runtime worker
+///   线程上、`Runtime::try_current` 必有；兜底缺席臂（运行时停机 clear 间
+///   隙、测试裸 drop）仅留痕不 panic——同步面已收口，远端回滚属尽力而为旁路。
+pub struct KeysDriverGuard {
+  mgr: Arc<MigrationManager>,
+  session: Arc<MigrateSession>,
+  disarmed: bool,
+}
+
+impl KeysDriverGuard {
+  /// 持守卫（生产挂点为 [`run_keys_migration_driver`]，本构造口供测试直构）
+  pub fn new(mgr: Arc<MigrationManager>, session: Arc<MigrateSession>) -> Self {
+    Self {
+      mgr,
+      session,
+      disarmed: false,
+    }
+  }
+
+  /// 正常收尾解除守卫（清理交还既有显式单点，防与失败 recover 双重收口）
+  pub fn disarm(&mut self) {
+    self.disarmed = true;
+  }
+}
+
+impl Drop for KeysDriverGuard {
+  fn drop(&mut self) {
+    if self.disarmed {
+      return;
+    }
+    // 取消臂：同步面单点收口（幂等：recover/正常收口已先达时零操作或假）
+    abandon_migration_session(&self.mgr, &self.session);
+    // 异步面：远端 IMPORTING 回滚 spawn 独立任务（上下文论证见类型文档）
+    if Runtime::try_current().is_some() {
+      spawn(rollback_abandoned_remote(Arc::clone(&self.session))).detach();
+    } else {
+      log::error!("KEYS 迁移驱动遗弃：无运行时上下文，远端 IMPORTING 回滚未补跑（同步面已收口）");
+    }
+  }
 }
 
 /// 发送缓冲内容上限读取：委派 cluster_provider 单点真源（迁移/无盘同源，

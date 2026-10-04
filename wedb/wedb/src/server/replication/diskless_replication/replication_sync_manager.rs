@@ -173,7 +173,11 @@ impl ReplicationSyncManager {
   /// 开窗即持 [`SyncBatchGuard`]：正常臂 disarm 后显式清册关窗，future
   /// 取消臂由 Drop 兜底（未收敛会话判败 + 清册关窗），sync_in_progress
   /// 不再恒真
-  fn begin_sync_batch(&self) -> Result<SyncBatchGuard<'_>, ReplicationError> {
+  ///
+  /// `doc(hidden)` 测试专用隐藏面：生产唯一挂点为
+  /// main_streaming_snapshot_driver，集成测经此直驱口开窗保持最小暴露
+  #[doc(hidden)]
+  pub fn begin_sync_batch(&self) -> Result<SyncBatchGuard<'_>, ReplicationError> {
     let mut inner = self.inner.lock();
     if inner.sync_in_progress {
       // C# 同位异常路径："Failed to acquire write syncInProgress lock!"——
@@ -194,18 +198,20 @@ impl ReplicationSyncManager {
   }
 
   /// 会话取消收尾（[`SyncSessionGuard`] Drop 单点）：钉线出册（会话侧实例
-  /// 匹配通道，被置换/摘除即零操作）→ 册子摘除本会话 → 册空复位批量窗标志。
-  /// 三步均缺席安全/实例匹配，正常臂（批窗 clear_sessions、begin_aof_sync
-  /// 原地置换、set_status(FAILED) 实例摘除）先行收敛后全为零操作，故守卫
-  /// 无需 disarm 位；future 取消时三步补齐——修复 leader 编排 future 被
-  /// 丢弃后 sync_in_progress 恒真、sessions 残留、diskless attach 永久被拒
-  /// 的取消泄漏
-  fn cancel_session(&self, session: &DisklessSyncSession) {
+  /// 匹配通道，被置换/摘除即零操作）→ 册子实例匹配摘除本会话 → 册空复位
+  /// 批量窗标志。摘除按 [`Arc::ptr_eq`] 实例匹配，与全文件 remove_if_current
+  /// 原则同源（绝不误删同键新驱动/新会话）：时序洞在主驱动 clear_sessions
+  /// 关窗清册后——旧任务守卫未及 drop、同 node_id 副本重启重 attach 入册、
+  /// 旧守卫迟到退场，按 id retain 会误摘新会话致其无人驱动至终态悬死；且
+  /// 同 id 旧会话在册时新会话本就被 add_replica_sync_session 拒绝，按 id
+  /// 匹配无额外保护。正常臂（批窗 clear_sessions、begin_aof_sync 原地置换、
+  /// set_status(FAILED) 实例摘除）先行收敛后三步全为零操作，故守卫无需
+  /// disarm 位；future 取消时三步补齐——修复 leader 编排 future 被丢弃后
+  /// sync_in_progress 恒真、sessions 残留、diskless attach 永久被拒的取消泄漏
+  fn cancel_session(&self, session: &Arc<DisklessSyncSession>) {
     session.cancel_cleanup();
     let mut inner = self.inner.lock();
-    inner
-      .sessions
-      .retain(|s| s.origin_node_id() != session.origin_node_id());
+    inner.sessions.retain(|s| !Arc::ptr_eq(s, session));
     if inner.sessions.is_empty() {
       inner.sync_in_progress = false;
     }
@@ -559,19 +565,19 @@ impl Drop for SyncBatchGuard<'_> {
 /// ReplicationSyncDriverAsync 任务体 finally）：入册会话的编排任务全程
 /// 持有，Drop 转调 [`ReplicationSyncManager::cancel_session`]。
 ///
-/// 无 disarm 位：清理三步（钉线实例匹配出册、册子 retain 摘除、册空复位
-/// 批量窗标志）在正常臂先行收敛后全为零操作，按构造幂等；future 取消时
-/// 三步补齐。
+/// 无 disarm 位：清理三步（钉线实例匹配出册、册子 [`Arc::ptr_eq`] 实例
+/// 匹配摘除、册空复位批量窗标志）在正常臂先行收敛后全为零操作，按构造
+/// 幂等；future 取消时三步补齐。
 pub struct SyncSessionGuard<'a> {
   mgr: &'a ReplicationSyncManager,
-  session: &'a DisklessSyncSession,
+  session: &'a Arc<DisklessSyncSession>,
 }
 
 impl<'a> SyncSessionGuard<'a> {
   /// 持守卫（生产挂点为
   /// [`replication_sync_driver`](ReplicationSyncManager::replication_sync_driver)
   /// 入口，本构造口供测试直构）
-  pub fn new(mgr: &'a ReplicationSyncManager, session: &'a DisklessSyncSession) -> Self {
+  pub fn new(mgr: &'a ReplicationSyncManager, session: &'a Arc<DisklessSyncSession>) -> Self {
     Self { mgr, session }
   }
 }

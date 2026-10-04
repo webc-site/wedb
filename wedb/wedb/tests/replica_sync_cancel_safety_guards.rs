@@ -223,3 +223,86 @@ fn pin_truncation_guard_drop_releases_truncation_clamp_and_disarm_coexists() {
   drop(guard);
   assert_eq!(store.count(), 1, "disarm 后在役驱动留存");
 }
+
+/// 批量窗复位分支锁定：begin_sync_batch 开窗 → sync_in_progress 为真
+/// （窗内 attach 被拒实证，测试非空转）→ 会话守卫取消（批窗守卫仍在场，
+/// 复位只能来自 cancel_session 的册空分支）→ 复位为假——重新开窗成功即
+/// 证 attach 不再被拒；删掉册空复位分支本用例必红
+#[test]
+fn session_guard_drop_resets_batch_window_flag_and_reopens() {
+  let store = Arc::new(AofSyncDriverStore::new(1));
+  let mgr = ReplicationSyncManager::new();
+  let s = mgr
+    .add_replica_sync_session(
+      "127.0.0.1:0".to_string(),
+      replica_meta(0xF1),
+      1,
+      Arc::clone(&store),
+    )
+    .expect("入册成功");
+
+  let batch = mgr.begin_sync_batch().expect("开窗成功");
+  assert_eq!(batch.sessions().len(), 1, "开窗快照含在册会话");
+  assert!(
+    mgr
+      .add_replica_sync_session(
+        "127.0.0.1:0".to_string(),
+        replica_meta(0xF2),
+        1,
+        Arc::clone(&store),
+      )
+      .is_err(),
+    "窗内 attach 须被拒（sync_in_progress 确为真）"
+  );
+
+  // 会话守卫取消：批窗守卫未 drop，复位只能来自 cancel_session 册空分支
+  drop(SyncSessionGuard::new(&mgr, &s));
+
+  // 册空复位：sync_in_progress 复位为假，重开窗成功 = attach 不再被拒
+  let mut reopen = mgr
+    .begin_sync_batch()
+    .expect("册空复位后重开窗须成功（attach 不再被拒）");
+  reopen.disarm();
+  drop(reopen);
+  drop(batch); // 取消臂收尾：快照会话判败 + 清册，幂等零操作面
+}
+
+/// 实例匹配时序洞锁定：主驱动 clear_sessions 关窗清册 → 旧任务守卫未及
+/// drop → 同 node_id 副本重启重 attach 入册 → 旧守卫迟到退场。按 id retain
+/// 会误摘新会话（无人驱动至终态悬死），实例匹配下仅摘旧实例、新会话留存
+/// 可开窗驱动
+#[test]
+fn late_session_guard_drop_spares_reattached_same_id_session() {
+  let store = Arc::new(AofSyncDriverStore::new(1));
+  let mgr = ReplicationSyncManager::new();
+  let old = mgr
+    .add_replica_sync_session(
+      "127.0.0.1:0".to_string(),
+      replica_meta(0xF1),
+      1,
+      Arc::clone(&store),
+    )
+    .expect("旧会话入册");
+
+  // 主驱动窗口收口（守卫取消臂形态：未收敛判败 + 清册关窗），旧守卫仍在场
+  drop(mgr.begin_sync_batch().expect("开窗成功"));
+
+  // 窗已关、册已空：同 node_id 重 attach 被接受入册
+  let fresh = mgr
+    .add_replica_sync_session(
+      "127.0.0.1:0".to_string(),
+      replica_meta(0xF1),
+      1,
+      Arc::clone(&store),
+    )
+    .expect("重 attach 入册");
+
+  // 旧会话守卫迟到退场：实例匹配仅摘旧实例，新会话不得被误摘
+  drop(SyncSessionGuard::new(&mgr, &old));
+  let batch = mgr.begin_sync_batch().expect("新会话在册，重开窗须成功");
+  assert_eq!(batch.sessions().len(), 1, "同键新会话不得被旧守卫误摘");
+  assert!(
+    Arc::ptr_eq(&batch.sessions()[0], &fresh),
+    "在册者须为重 attach 的新实例"
+  );
+}

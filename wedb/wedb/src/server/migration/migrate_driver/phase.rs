@@ -17,7 +17,7 @@ use wconn::record::encode_migration_payload;
 #[cfg(feature = "tls")]
 use wtls::ClientTlsConfig;
 
-use super::recover_and_fail;
+use super::{keys::wait_dur, recover_and_fail};
 use crate::{
   client::GarnetClient,
   error::{Error, Result},
@@ -31,6 +31,10 @@ use crate::{
 /// 停等等待的取消轮询切片：等待期间周期性检查会话取消令牌，dispose 触发
 /// 后在途停等即时收敛（对标 C# `WaitAsync(_timeout, _cts.Token)` 的令牌联动）
 const CANCEL_POLL_SLICE: Duration = Duration::from_millis(25);
+
+/// 遗弃迁移回滚的逐帧停等上限：回滚是守卫取消臂 spawn 的尽力而为旁路任务，
+/// 绝不复刻免超时档（timeout = -1）的无限等待；spec.timeout 更紧时取较小者
+const ABANDONED_ROLLBACK_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// 停等超时错误
 pub(crate) fn timeout_err() -> Error {
@@ -156,6 +160,56 @@ pub(crate) async fn try_recover_from_failure(
   }
   *session.status.write() = MigrateState::Fail;
   dispose_migration(client, session);
+}
+
+/// 遗弃驱动远端回滚（KEYS 守卫取消臂 spawn 的独立任务体）
+///
+/// 在 garnet 中的相对路径: libs/cluster/Server/Migration/MigrationDriver.cs:TryRecoverFromFailureAsync
+/// （远端 IMPORTING→STABLE 半程；本端 MIGRATING 系运维经 NOTMIGRATING 门
+/// 手工前置保持原状、会话终态与任务表摘除由守卫同步面先达，均不在本任务重复）
+///
+/// 发起客户端断连/CLIENT KILL/停机广播后，泵侧 RaceEnd::Disposed 丢弃 KEYS
+/// 驱动 future（future drop 即取消），[`try_recover_from_failure`] 不再可达
+/// ——远端自动下发的 IMPORTING 无回滚即目标端该槽持续 CLUSTERDOWN。本件以
+/// 全新客户端补跑 STABLE：丢弃点原连接上可能残留在途载荷帧（严格停等，后续
+/// 响应永远错位），必须弃旧连全新重建（对标 recover 的 poisoned 重连保供
+/// 语义；弃连点不可知故恒重建）。逐帧停等上限取 spec.timeout 与
+/// [`ABANDONED_ROLLBACK_TIMEOUT`] 较小者（免超时档同样封顶）；每帧判败仅
+/// 留痕不阻断（C# 同口径），收尾弃连防迟到 ACK 错位。会话取消令牌不参与
+/// 本任务（守卫同步面 try_remove 即触发 dispose，任务必须独立于令牌收敛）
+pub(super) async fn rollback_abandoned_remote(session: Arc<MigrateSession>) {
+  let ranges = session.get_ranges();
+  if ranges.is_empty() {
+    return;
+  }
+  let limit = wait_dur(session.spec.timeout).map_or(ABANDONED_ROLLBACK_TIMEOUT, |d| {
+    d.min(ABANDONED_ROLLBACK_TIMEOUT)
+  });
+  let client = connect_migrate_client(
+    &session.spec,
+    &session,
+    #[cfg(feature = "tls")]
+    session.cluster_provider.try_cluster_tls_client().as_ref(),
+  );
+  let _ = client.connect_async().await;
+  if !client.is_connected() {
+    log::error!("遗弃迁移回滚：无法连接迁移目标节点，远端 IMPORTING 回滚未达");
+    return;
+  }
+  for &(start, end) in &ranges {
+    match timeout(
+      limit,
+      client.set_slot_range_async(SlotStateStr::Stable.as_str(), start, end, None),
+    )
+    .await
+    {
+      Ok(Ok(resp)) if resp == "OK" => {}
+      Ok(Ok(resp)) => log::error!("遗弃迁移回滚远端槽位 STABLE 失败: {resp}"),
+      Ok(Err(err)) => log::error!("遗弃迁移回滚远端槽位 STABLE 失败: {err}"),
+      Err(_) => log::error!("遗弃迁移回滚远端槽位 STABLE 超时"),
+    }
+  }
+  client.dispose();
 }
 
 /// 单批载荷发送 + 停等 ACK：对标

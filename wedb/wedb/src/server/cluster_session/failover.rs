@@ -2,6 +2,7 @@
 
 use std::{str::from_utf8, sync::Arc, time::Duration};
 
+use compio::runtime::{Runtime, spawn};
 use waof::AofAddress;
 use wbase::{
   hex::hex_u128,
@@ -24,7 +25,10 @@ use wresp::{
 use super::{
   ClusterSession, ERR_CLUSTER_NOT_INITIALIZED, cluster_sub_name, reject_none, reject_wrong_arity,
 };
-use crate::server::{failover::failover_option::FailoverOption, worker::NodeRole};
+use crate::server::{
+  cluster_manager::ClusterManager, cluster_provider::ClusterProvider,
+  failover::failover_option::FailoverOption, worker::NodeRole,
+};
 
 impl ClusterSession {
   /// libs/cluster/Session/RespClusterFailoverCommands.cs:NetworkClusterFailover
@@ -161,15 +165,27 @@ impl ClusterSession {
       let mut out = Vec::new();
       // C# RespClusterFailoverCommands.cs:128-129 BlockingWait(UnsafeBumpAndWait…)
       // 静止达成后才把位点作为应答回出（原语 C# 侧恒真），慢路径异步等待
-      // 全会话静止避免同步忙等阻塞 compio reactor。rust 有界化后 false =
-      // 静止未达成、返值必承判（deviations §95 判败措辞同口径，与 r25 迁移
-      // 族同原语同害同判）：滞留批内在途写此后仍可提交、本端采样位点非终
-      // 态水位，照回即令副本在缺口上直入接管、已 ACK 写随槽位让渡永久丢
-      // 失。未达成即赎回让渡（try_restore_stop_writes 以真实让渡标志为唯一
-      // 判据，空参复位臂天然幂等无操作）并回 -ERR，不回位点应答——副本端
-      // pause 臂按「无有效应答即放弃」消费本判败信号
-      if !provider.bump_and_wait_for_epoch_transition_async().await {
-        cm.try_restore_stop_writes();
+      // 全会话静止避免同步忙等阻塞 compio reactor。排空全程持
+      // [`EpochDrainGuard`]：future 被泵侧丢弃（断连/CLIENT KILL/停机广播）
+      // 时守卫取消臂 spawn 独立任务补跑排空与失败赎回——C# BlockingWait 恒
+      // 完成语义对位，丢弃不再跳过纪元推进。
+      //
+      // rust 有界化后 false = 静止未达成、返值必承判（deviations §95 判败措辞
+      // 同口径，与 r25 迁移族同原语同判）：滞留批内在途写此后仍可提交、本端
+      // 采样位点非终态水位，照回即令副本在缺口上直入接管、已 ACK 写随槽位
+      // 让渡永久丢失。未达成即赎回让渡（try_restore_stop_writes 以真实让渡
+      // 标志为唯一判据，空参复位臂天然幂等无操作）并回 -ERR，不回位点应答
+      // ——副本端 pause 臂按「无有效应答即放弃」消费本判败信号
+      let settled = {
+        let mut drain_guard = EpochDrainGuard::new(Arc::clone(&provider), Arc::clone(&cm));
+        let settled = provider.bump_and_wait_for_epoch_transition_async().await;
+        if !settled {
+          cm.try_restore_stop_writes();
+        }
+        drain_guard.disarm();
+        settled
+      };
+      if !settled {
         out.write_resp_error("ERR epoch drain not settled within cluster-node-timeout");
         return out;
       }
@@ -367,5 +383,66 @@ impl ClusterSession {
     }
     output.write_resp_simple_string("OK");
     true
+  }
+}
+
+/// 主端 STOPWRITES 纪元排空守卫（对标 replication_sync_manager 的
+/// SyncBatchGuard 先例：Drop 内取消收口 + disarm 幂等共存）
+///
+/// C# 主端停写应答面 BlockingWait 阻塞网络线程，发起端断连不取消排空——
+/// 纪元推进恒完成（应答可弃）。rust 排空挂慢路径 future 内，泵侧
+/// RaceEnd::Disposed 丢弃即跳过纪元推进、失败赎回不可达，偏离基线。本守卫
+/// 取消臂（future 未经 disarm 丢弃）spawn 独立任务重跑
+/// `bump_and_wait_for_epoch_transition_async` 与失败赎回（赎回 swap 幂等，
+/// 与正常臂判败臂绝不双写让渡标志；重跑自一次重复 bump 起——纪元为单调
+/// 屏障计数，重复推进与 CLUSTER BUMPEPOCH 同面，无观察者可见害）。
+///
+/// spawn 上下文论证：future 仅在泵 poll（RaceEnd::Disposed 臂）或会话收口
+/// 丢弃，均在 compio runtime worker 线程上、`Runtime::try_current` 必有；
+/// 兜底缺席臂仅留痕不 panic——让渡赎回交副本复位/FAILOVER ABORT 既有路径。
+///
+/// 正常臂：排空返值承判（失败赎回在 future 内先行落定）后 `disarm`，守卫
+/// 退场零操作，行为与守卫引入前零变化。
+struct EpochDrainGuard {
+  provider: Arc<ClusterProvider>,
+  cm: Arc<ClusterManager>,
+  disarmed: bool,
+}
+
+impl EpochDrainGuard {
+  /// 持守卫（生产挂点为 network_cluster_fail_stop_writes 排空段）
+  fn new(provider: Arc<ClusterProvider>, cm: Arc<ClusterManager>) -> Self {
+    Self {
+      provider,
+      cm,
+      disarmed: false,
+    }
+  }
+
+  /// 正常收尾解除守卫（排空返值已承判，防取消臂重复补跑）
+  fn disarm(&mut self) {
+    self.disarmed = true;
+  }
+}
+
+impl Drop for EpochDrainGuard {
+  fn drop(&mut self) {
+    if self.disarmed {
+      return;
+    }
+    if Runtime::try_current().is_some() {
+      let provider = Arc::clone(&self.provider);
+      let cm = Arc::clone(&self.cm);
+      spawn(async move {
+        if !provider.bump_and_wait_for_epoch_transition_async().await {
+          cm.try_restore_stop_writes();
+        }
+      })
+      .detach();
+    } else {
+      log::error!(
+        "主端停写排空被丢弃且无运行时上下文，纪元补排空未跑（让渡赎回交副本复位/FAILOVER ABORT 路径）"
+      );
+    }
   }
 }
