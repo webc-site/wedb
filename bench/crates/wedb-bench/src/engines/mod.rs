@@ -15,10 +15,10 @@ use crate::harness::benchmark;
 use crate::result::ResultType;
 use crate::runner::EngineSpec;
 
-#[cfg(feature = "hash")]
-pub mod hash_engine;
 #[cfg(feature = "bftree")]
 pub mod bftree_engine;
+#[cfg(feature = "hash")]
+pub mod hash_engine;
 
 pub const HASH_SOURCE: &str = "https://github.com/webc-site/wedb/tree/main/wedb/wkv";
 pub const BFTREE_SOURCE: &str = "https://github.com/webc-site/wedb/tree/main/wedb/wbftree";

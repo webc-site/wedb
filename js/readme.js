@@ -25,16 +25,16 @@ const END = "WEDB-BENCH:END";
 
 const TEXT = {
   en: {
-    run_line: (commit, branch, date) =>
-      `> Latest run: commit \`${commit}\` (\`${branch}\`), ${date} UTC.`,
+    run_line: (identity, branch, date) =>
+      `> Latest run: \`${identity}\` (\`${branch}\`), ${date} UTC.`,
     machine: (platform, cpu, cores, gib) =>
       `## ${platform} — ${cpu} (${cores} logical cores / ${gib} GiB RAM)`,
     note: (text) => `- Harness note: ${text}`,
     dead: (name, status, detail) => `- Column \`${name}\`: ${status} — ${detail}`,
   },
   zh: {
-    run_line: (commit, branch, date) =>
-      `> 最新一轮：commit \`${commit}\`（\`${branch}\`），${date} UTC。`,
+    run_line: (identity, branch, date) =>
+      `> 最新一轮：\`${identity}\`（\`${branch}\`），${date} UTC。`,
     machine: (platform, cpu, cores, gib) =>
       `## ${platform} — ${cpu}（${cores} 逻辑核 / ${gib} GiB 内存）`,
     note: (text) => `- 备注：${text}`,
@@ -160,7 +160,7 @@ function render_chapter(context, language) {
 function render_fence(context, language) {
   const text = TEXT[language];
   const run = context.by_platform.get(context.representative);
-  const head = text.run_line(run.commit.slice(0, 7), run.branch, utc_day(run.generated_at_unix));
+  const head = text.run_line(run.version || run.commit.slice(0, 7), run.branch, utc_day(run.generated_at_unix));
   return `${head}\n\n${render_run(run, table_for(context.tables, run.platform), language)}`;
 }
 

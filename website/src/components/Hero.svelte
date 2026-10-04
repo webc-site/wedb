@@ -1,7 +1,7 @@
 <script>
   import {
     platformLabel,
-    shortCommit,
+    versionLabel,
     formatUnix,
     formatCount,
   } from "../lib/data.js";
@@ -43,7 +43,7 @@
       <span class="badge">{headline}</span>
       <span class="badge">{engines.length} 列 · {runs.length} 平台</span>
       {#if newest}
-        <span class="badge mono">{shortCommit(newest.commit)}</span>
+        <span class="badge mono">{versionLabel(newest)}</span>
         <span class="badge mono">{platformLabel(newest.platform)}</span>
         <span class="badge mono">{formatUnix(newest.generated_at_unix)} UTC</span>
       {/if}

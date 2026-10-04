@@ -1,5 +1,5 @@
 <script>
-  import { engineColor, platformLabel, shortCommit, throughputOptions, throughputValue } from "../lib/data.js";
+  import { engineColor, platformLabel, throughputOptions, versionLabel, throughputValue } from "../lib/data.js";
 
   let { runs = [] } = $props();
 
@@ -71,7 +71,7 @@
       </button>
     {/each}
     <span class="muted" style="margin-left:auto">
-      <span class="mono">{shortCommit(current.commit)}</span>
+      <span class="mono">{versionLabel(current)}</span>
     </span>
   </div>
 

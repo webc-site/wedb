@@ -3,7 +3,7 @@
     rowsByName,
     rowSpecs,
     platformLabel,
-    shortCommit,
+    versionLabel,
     formatUnix,
     formatGib,
     formatCount,
@@ -55,7 +55,7 @@
 <div class="box-card">
   <div class="pane-head">
     <span class="label">{platformLabel(run.platform)}</span>
-    <span class="mono">{shortCommit(run.commit)}</span>
+    <span class="mono">{versionLabel(run)}</span>
     <span class="mono">{formatUnix(run.generated_at_unix)} UTC</span>
   </div>
 

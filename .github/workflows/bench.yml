@@ -77,6 +77,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        # 取 tag：版本身份靠 git describe 认 tag，浅克隆默认不带 tag 会一路退化成短 sha
+        with:
+          fetch-tags: true
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -111,11 +114,14 @@ jobs:
         shell: bash
         run: |
           mkdir -p bench/.bench_run
+          # 版本身份：打了 tag 就是 vX.Y.Z[-n-gabc123]，没 tag 退化成短 sha；
+          # 站点趋势图的点直接标这个值，所以只在 CI 侧解析，本地跑留空由站点回退到 commit
+          version=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)
           # 必须用 --bench 锁定 bench 目标：cargo bench 默认把参数也喂给 lib 单测目标，
           # libtest 不认 --only 会以 101 退出，整列凭空失败
           cargo bench -p wedb-bench-compare --no-default-features \
             --features "$ENGINE" --bench compare_benchmark -- \
-            --only "$ENGINE" --scale "$SCALE" \
+            --only "$ENGINE" --scale "$SCALE" --version "$version" \
             --json "$GITHUB_WORKSPACE/bench/.bench_run/run.json" \
             2>&1 | tee "$GITHUB_WORKSPACE/bench/.bench_run/bench.log"
           exit "${PIPESTATUS[0]}"

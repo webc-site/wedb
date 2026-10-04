@@ -5,7 +5,7 @@
     formatDay,
     formatTick,
     platformLabel,
-    shortCommit,
+    versionLabel,
     throughputOptions,
     throughputValue,
   } from "../lib/data.js";
@@ -51,6 +51,7 @@
           value,
           formatted: row?.formatted ?? "N/A",
           commit: run.commit,
+          version: versionLabel(run),
           generated_at_unix: run.generated_at_unix,
         };
       });
@@ -84,6 +85,7 @@
       points: series_runs.map((run, index) => ({
         x: step(index),
         commit: run.commit,
+        version: versionLabel(run),
         generated_at_unix: run.generated_at_unix,
       })),
       step,
@@ -165,7 +167,7 @@
                 fill={engineColor(engine.name)}
               >
                 <title>
-                  {engine.name} · {shortCommit(point.commit)}（{formatDay(point.generated_at_unix)}）· {point.formatted}
+                  {engine.name} · {point.version}（{formatDay(point.generated_at_unix)}）· {point.formatted}
                 </title>
               </circle>
             {/if}
@@ -176,7 +178,7 @@
         {#each chart.points as point, index}
           {#if index % label_stride === 0}
             <text class="axis" x={point.x} y={PLOT_BOTTOM + 18} text-anchor="middle">
-              {shortCommit(point.commit)}
+              {point.version}
             </text>
             <text class="axis axis-date" x={point.x} y={PLOT_BOTTOM + 32} text-anchor="middle">
               {formatDay(point.generated_at_unix)}
