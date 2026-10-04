@@ -1,9 +1,9 @@
 //! 向量集集群深臂集成测试
 //!
 //! 对标 C# test/cluster/Garnet.test.cluster.vectorsets/VectorSets/
-//! ClusterVectorSetTests.cs 三法（10 法中挑 3，副本对账面已由
+//! ClusterVectorSetTests.cs 四法（副本对账面已由
 //! migrate_source_vector_set_replica_converge.rs / diskless_sync_ri_vector.rs
-//! 承担，本册聚焦迁移三臂）：
+//! 承担，本册聚焦迁移四臂）：
 //! 1. RepeatedCreateDeleteAsync → repeated_create_delete_keeps_set_coherent：
 //!    反复 DEL + 双 VADD + VSIM 循环，集一致、删空自愈（迭代数 100→30 收窄
 //!    控时长，断言面同型）；
@@ -13,7 +13,15 @@
 //!    修改横跨迁移边界确定性等价（C# 并发写循环的 rust 无网络线程阻塞形态）；
 //! 3. MigrateVectorSetBackAsync → migrate_vector_set_back_no_data_loss：
 //!    A→B 迁移续写、B→A 迁回再写，最终属主三段元素齐（对标 VEMB 逐元素
-//!    无损断言的登记表 + 基数等价面）。
+//!    无损断言的登记表 + 基数等价面）；
+//! 4. VectorSetMigrationPreservesExpirationAsync →
+//!    migrate_vector_set_ttl_family_invariant：迁移前后 TTL 族应答不变式。
+//!    C# 修复（cdf966b06 #2179）源于其索引记录驻主存储、键可携 TTL，迁移
+//!    丢 expiration 需经迁移载荷携带；rust 向量索引驻登记表第四态（wkv 值
+//!    域外，doc/zh/deviations.md §75/§79），向量键 TTL 族写侧 :0 / 读侧 -2
+//!    刻意收敛（vector_key_domain_ops.rs 单点锁定）——键本无 expiration，
+//!    「迁移丢失 expiration」结构性不存在，本用例锁「迁移前后 TTL 族应答
+//!    零变化 + 元素无损」的对拍不变式。
 //!
 //! 装配沿用 cluster_migration.rs::migrate_vector_set_keys_e2e 既有夹具形态：
 //! 双主 provider 拓扑 + 真命令臂消费驱动 + 真 TCP 桥（RESERVE/MIGRATE 交
@@ -624,3 +632,106 @@ fn migrate_vector_set_back_no_data_loss() -> Void {
   })
 }
 
+/// 法四 VectorSetMigrationPreservesExpirationAsync（cdf966b06 #2179 对拍）：
+/// 迁移前后 TTL 族应答不变式 + 元素无损
+///
+/// C# 修复的缺陷根因是其索引记录驻主存储（键可携 TTL），迁移索引键不携带
+/// expiration 致目标端丢 TTL；rust 向量索引驻登记表第四态（wkv 值域外，
+/// doc/zh/deviations.md §75/§79），向量键 TTL 族写侧 :0 / 读侧 -2 刻意收敛
+/// （vector_key_domain_ops.rs::vector_set_ttl_family_converged_with_write_side
+/// 单点锁定）——键本无 expiration，「迁移丢失 expiration」结构性不存在：
+/// 源端 EXPIRE :0（无 TTL 可挂），迁移后目标端 TTL -2 / EXPIRE :0 同源，
+/// TTL 状态零携带零丢失，元素面迁移无损。
+#[test]
+fn migrate_vector_set_ttl_family_invariant() -> Void {
+  let rt = Runtime::new().unwrap();
+  rt.block_on(async {
+    // ── 双主装配：node_1 源 / node_2 目标 ──
+    let cp_a = two_primary_provider(
+      Some(100),
+      CLUSTER_SLOT_COUNT,
+      CLUSTER_SLOT_COUNT,
+      &[REMOTE_SLOT],
+      None,
+    );
+    let (_dir_a, store_a) = migrate_store("vsc_ttl_a.db");
+    let vm_a = vector_manager_for(&store_a);
+    cp_a.set_store(Arc::clone(&store_a));
+    cp_a.set_vector_manager(Arc::clone(&vm_a));
+    let mut consumer_a = vector_consumer(&cp_a, &store_a, &vm_a);
+
+    let target_cp = importing_target_provider(7000);
+    let (_dir_b, store_b) = migrate_store("vsc_ttl_b.db");
+    let vm_b = vector_manager_for(&store_b);
+    target_cp.set_store(Arc::clone(&store_b));
+    target_cp.set_vector_manager(Arc::clone(&vm_b));
+    let consumer_b = vector_consumer(&target_cp, &store_b, &vm_b);
+
+    // 基线元素入集
+    vadd(&rt, &mut consumer_a, b"el_a", [1.0, 0.5, 0.25, 0.125]);
+
+    // TTL 族断言助手（读侧 -2 / 写侧 :0，登记表第四态收敛口径）
+    let ttl_family = |rt: &Runtime, c: &mut RespSessionConsumer, tag: &str| {
+      for (cmd, expect) in [
+        (vec![b"TTL".as_slice(), VS_KEY], &b":-2\r\n"[..]),
+        (vec![b"PTTL", VS_KEY], b":-2\r\n"),
+        (vec![b"EXPIRE", VS_KEY, b"60"], b":0\r\n"),
+        (vec![b"PEXPIRE", VS_KEY, b"60000"], b":0\r\n"),
+        (vec![b"PERSIST", VS_KEY], b":0\r\n"),
+      ] {
+        assert_eq!(
+          drive(rt, c, &resp_frame(&cmd)),
+          expect,
+          "{tag} TTL 族 {cmd:?} 应答不符（登记表第四态收敛口径）"
+        );
+      }
+    };
+
+    // 迁移前：源端 TTL 族收敛（EXPIRE :0 ⇒ 键无 expiration，后续迁移无从丢失）
+    ttl_family(&rt, &mut consumer_a, "迁移前源端");
+
+    // ── A → B 迁移（桥 → 目标端真消费）──
+    let (listener, port) = bind_bridge(&cp_a, DE12_NODE_ID).await;
+    spawn_migration_bridge(listener, consumer_b).await;
+    cp_a
+      .cluster_manager()
+      .unwrap()
+      .try_prepare_slot_for_migration(SLOT0 as usize, DE12_NODE_ID)
+      .expect("A→B 迁移前置应成功");
+    assert_eq!(
+      migrate_keys(&rt, &mut consumer_a, port),
+      b"+OK\r\n",
+      "A→B 迁移应 +OK"
+    );
+    assert!(
+      vm_a
+        .read_migrated_index(SessionPrefixBuf::ROOT.as_slice(), VS_KEY)
+        .is_none(),
+      "迁移后源端向量集键应消失"
+    );
+
+    // ── 目标端收口：元素无损 + TTL 族应答与源端迁移前零变化 ──
+    reset_slot_to_stable(&target_cp, SLOT0);
+    let index_b = vm_b
+      .read_migrated_index(SessionPrefixBuf::ROOT.as_slice(), VS_KEY)
+      .expect("目标端应有迁移索引");
+    let index_b = Index::from_bytes(&index_b).unwrap();
+    assert_eq!(vm_b.service.card(index_b.context), 1, "目标端应收基线元素");
+    {
+      let bind_sess = store_b.new_session().unwrap();
+      let _domain = ActiveVectorSessionGuard::bind(&bind_sess);
+      assert!(
+        vm_b
+          .service
+          .check_external_id_valid(index_b.context, b"el_a")
+          .await
+          .unwrap(),
+        "目标端应含迁移元素 el_a（无数据丢失）"
+      );
+    }
+    let mut direct_b = vector_consumer(&target_cp, &store_b, &vm_b);
+    ttl_family(&rt, &mut direct_b, "迁移后目标端");
+
+    aok::OK
+  })
+}
