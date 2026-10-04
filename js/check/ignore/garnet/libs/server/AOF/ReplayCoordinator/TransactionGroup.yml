@@ -1,0 +1,11 @@
+# C# TransactionGroup.Clear（:40）`Operations.Clear()`：原地清空操作缓冲以
+# 复用组对象。rust 侧 TransactionGroup（aof_replay_context.rs）为所有权值
+# 语义：TxnCommit 即从 active_txns 摘除整体移动（process_transaction_group
+# 消费后丢弃），模糊区组出队即转移（dequeue_txn_group），无原地清空复用
+# 形态——所有权析构即等价清空
+- 文件:
+    - libs/server/AOF/ReplayCoordinator/TransactionGroup.cs:
+        - Clear
+  理由: >-
+    原地清空操作缓冲以复用组对象；rust 组为所有权值语义（摘除/出队即
+    整体移动消费），所有权析构等价清空，无原地 clear 方法与调用面

@@ -1,0 +1,13 @@
+# 独立 target 目录：评测构建不与主仓的 cargo 任务争锁
+[build]
+target-dir = "/tmp/wedb_bench_target"
+
+# gxhash（wbase 的哈希后端）要求 AES 指令集；aarch64 上属基线特性无需开启
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-feature=+aes"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "target-feature=+aes"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+aes"]

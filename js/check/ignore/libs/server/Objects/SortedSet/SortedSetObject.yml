@@ -1,0 +1,29 @@
+# zset 差集双助手清理：C# CopyDiff/InPlaceDiff 仅被存储侧 SortedSetOps（ZDIFF
+# 组合）调用；rust ZDIFF/ZDIFFSTORE 在 wnode sorted_set_commands/mod.rs 以单遍历
+# first − rest 过滤独立实现（slow.rs STORE 慢路径同源），SortedSetObject 上的
+# 静态差集映射零接线，按转写红线删除
+- 文件:
+    - libs/server/Objects/SortedSet/SortedSetObject.cs:
+        - InPlaceDiff
+  理由: 全仓生产 + 测试双域零调用死代码已删除；差集语义由 wnode
+    sorted_set_commands（diff_sets 单遍历 + STORE 慢路径）单点承接
+# task/ing/data-check-ledger-hygiene.md 问题 二.3（SortedSetObject 残留三件的去向）：
+# Add 与 DeleteExpiredItemsWorker 经实测有对位体，已改挂全路径锚而非登记本档
+# （wcol/src/zset/sorted_set_object.rs:339 add 持 Add、同文件 delete_expired_items
+# 一次内联完成 C# :677 DeleteExpiredItems 与 :684 DeleteExpiredItemsWorker 两体，
+# 故两口同挂该唯一承接点；对位 hash_object.rs:498 的 worker 分写形态）；
+# CopyDiff 同理挂 wnode/src/resp/objects/sorted_set_commands/write.rs:840 diff_sets
+- 文件:
+    - libs/server/Objects/SortedSet/SortedSetObject.cs:
+        - Clone
+  理由: >-
+    C# :352 的 Clone 是 `new SortedSetObject(this)` 的整件复制；rust
+    SortedSetObject（wcol/src/zset/sorted_set_object.rs:152）由 derive(Debug, Clone)
+    逐字段复制承接，无手写方法体可挂符号锚
+- 文件:
+    - libs/server/Objects/SortedSet/SortedSetObject.cs:
+        - Dispose
+  理由: >-
+    C# :349 本体即为空（{ }），是常驻对象层的 IDisposable 形状要求；rust 信封
+    无常驻对象层与后台线程，资源随所有权析构释放，物理剔除走读路径 purge
+    （同口径见 task/done/my-wcol-count-name-split.md）

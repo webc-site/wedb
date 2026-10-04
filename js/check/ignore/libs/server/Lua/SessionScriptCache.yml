@@ -1,0 +1,33 @@
+- 理由: >-
+    C# SessionScriptCache.SetUserHandle 喂给内嵌
+    processor（独立     RespServerSession）的 ACL 门；rust
+    无内嵌 processor，脚本内 ACL 检查经     RespScriptingApi
+    直达外层会话 acl_user_handle（认证变更即最新），缓存侧
+    句柄复制无生产实效，随 wlua cache.rs
+    死字段删除（task/done/lua-pubsub-gaps.md）
+  文件:
+    - libs/server/Lua/SessionScriptCache.cs:
+        - SetUserHandle
+- 理由: >-
+    C# TrySwapDatabaseSessions 为 databaseSessions
+    数组架构换库链的缓存保活挂点
+    （MultiDatabaseManager.TrySwapDatabases →
+    RespServerSession → 脚本缓存）；     rust 单日志多库为虚库 ID
+    原子换号（wkv StoreSession::swap_databases），
+    脚本缓存与库上下文解耦，换库无需缓存侧钩子，恒 true
+    空壳删除（task/ing/swapdb-dedup.md）
+  文件:
+    - libs/server/Lua/SessionScriptCache.cs:
+        - TrySwapDatabaseSessions
+- 理由: >-
+    运行中脚本簿记重组：超时装挂由 wlua/src/commands.rs
+    run_script_for_session/start_execute_script 的
+    arm/disarm 共享截止槽配对承接（commands.rs 明文对齐），超时激活由
+    LuaTimeoutManager.tick 承接（cache.rs
+    SessionTimeout/TimeoutRegistration）；C#
+    scriptRunMonitor 并发重入簿记刻意不复刻（窗口期无
+    await、no-script 门拦截重入）
+  文件:
+    - libs/server/Lua/SessionScriptCache.cs:
+        - StartRunningScript
+        - StopRunningScript

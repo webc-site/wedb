@@ -1,0 +1,4 @@
+- 理由: benchmark 专用接口（C# 注释 NOTE Unsafe DO NOT USE），生产零调用，rust 侧不实现
+  文件:
+    - libs/server/Cluster/IClusterSession.cs:
+        - UnsafeSetConfig

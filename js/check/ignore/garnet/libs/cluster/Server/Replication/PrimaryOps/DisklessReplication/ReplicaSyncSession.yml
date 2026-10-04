@@ -1,0 +1,19 @@
+# task/ing/net-check-anchor-fullpath.md 甄别延续（与 AofOperations/
+# AofSyncDriver.yml 的 TryWrite 对位条同族，上一层会话转发口）。
+# C# DisklessReplication/ReplicaSyncSession.cs:79/:88 两枚均为纯转发体：
+# AsyncUtils.BlockingWait(WaitForFlushAsync()) 后一行转调
+# AofSyncDriver.TryWriteRecordSpan / TryWriteChunkedRecordSpan（其自身再
+# 转发 garnetClient，rust 无对位体已在该文件登记）。rust diskless 链的
+# 会话级写入面收敛为扇出迭代器停等广播单口：整记录与分块统一经
+# replication_snapshot_iterator.rs fan_out_send（锚挂 FanOutRecordSpan，
+# 超大记录分块由扫描主体逐块回调同口），无「会话逐口转发 + 返布尔缓冲
+# 剩余空间」的第二套协议面
+- 文件:
+    - libs/cluster/Server/Replication/PrimaryOps/DisklessReplication/ReplicaSyncSession.cs:
+        - TryWriteRecordSpan
+        - TryWriteChunkedRecordSpan
+  理由: >-
+    纯转发口无对位体——BlockingWait 刷缓冲后一行转调 AofSyncDriver 同名口；
+    rust diskless 链整记录与分块统一收敛 replication_snapshot_iterator.rs
+    fan_out_send 停等广播单口（FanOutRecordSpan 锚），无逐口转发与返布尔
+    缓冲协议

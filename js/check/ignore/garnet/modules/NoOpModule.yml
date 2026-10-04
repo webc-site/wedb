@@ -1,0 +1,10 @@
+# NoOpModule 补遗登记：其余五文件（DummyObject、NoOpCommandRMW、NoOpCommandRead、
+# NoOpModule、NoOpProc）已在顶层 modules.yml 登记，此处补齐漏登的三文件
+- 文件:
+    - modules/NoOpModule/DummyObjectNoOpRead.cs
+    - modules/NoOpModule/DummyObjectNoOpRMW.cs
+    - modules/NoOpModule/NoOpTxn.cs
+  理由: C# 示例模块 NoOpModule 的其余文件（no-op 读/RMW 对象回调与 no-op 事务过程），
+    用于演示 MODULE LOADCS 动态注册面；该动态注册管理层按 transpile 规范整体移除，
+    rust 扩展命令经 wcustom 静态执行体与 wext_roaring/wext_json 编译期清单承接，
+    示例模块无移植价值（与 modules.yml 既有登记同一判定）

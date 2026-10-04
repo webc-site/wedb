@@ -1,0 +1,30 @@
+- 理由: >-
+    会话写出面拆分重组：帧原语落
+    wresp/src/resp_memory_writer.rs（write_ascii_bulk_string/write_array_length/write_bulk_string/write_double_numeric/write_empty_array/write_empty_set/write_error/write_int32/write_int64/write_integer_from_bytes/write_map_length/write_set_length/write_simple_string/write_large_verbatim_string，WriteUtf8BulkString
+    并入 write_bulk_string 的 &str 形态）；协议版本分派落
+    wresp/src/ext.rs RespWriter trait 与
+    cmd_strings.rs
+    版本分派头（WriteMapLength/WriteSetLength/WriteDoubleNumeric）；WriteZero/WriteOne
+    由 write_bool 两臂字面 :0/:1 与 write_resp_int(0/1)
+    承接；WritePushLength 由 cmd_strings.rs
+    PUBSUB_PUSH_* 前缀常量整帧承接
+  文件:
+    - libs/server/Resp/RespServerSessionOutput.cs:
+        - WriteAsciiBulkString
+        - WriteArrayLength
+        - WriteBulkString
+        - WriteDoubleNumeric
+        - WriteEmptyArray
+        - WriteEmptySet
+        - WriteError
+        - WriteInt32
+        - WriteInt64
+        - WriteIntegerFromBytes
+        - WriteMapLength
+        - WriteZero
+        - WriteOne
+        - WritePushLength
+        - WriteSetLength
+        - WriteSimpleString
+        - WriteUtf8BulkString
+        - WriteLargeVerbatimString

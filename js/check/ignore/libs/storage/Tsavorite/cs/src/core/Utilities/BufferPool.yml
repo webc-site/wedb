@@ -1,0 +1,8 @@
+- 理由: >-
+    C# 原地换页 EnsureSize 助手在 rust AlignedBuf
+    所有权模型（Drop 自动回池）下退化为重新借出：wbase/src/pool/mod.rs
+    BufferPool::get / get_from_slice /
+    get_with_policy（OriginReturn 语义并入），无需独立助手
+  文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs:
+        - EnsureSize

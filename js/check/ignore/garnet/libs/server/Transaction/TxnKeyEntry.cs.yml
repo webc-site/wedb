@@ -1,0 +1,12 @@
+# TxnKeyEntry 调试链两符号：ToString（:33 调试器显示形，注释自陈 debugger
+# 无法走 Globalization 链）与 GetLockset（:162 锁清单文本拼装，唯一消费方
+# TransactionManager.GetLockset——同批登记）。rust wtxn 调试经派生与日志宏
+# 内联承接，无逐符号移植面。
+- 文件:
+    - libs/server/Transaction/TxnKeyEntry.cs:
+        - GetLockset
+        - ToString
+  理由: >-
+    调试链零消费：ToString 为调试器显示形，GetLockset 拼锁清单文本且唯一
+    消费方随 TransactionManager.GetLockset 一并登记；rust 调试走日志宏
+    内联格式化，无对应面。

@@ -1,0 +1,7 @@
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs:
+        - TestBucketHeadCacheLineOffset
+  理由: C# BufferPool.OriginReturn.cs:1204 的 TestBucketHeadCacheLineOffset 仅作为
+    C# 内存布局对齐测试（SectorAlignedBufferPoolTests.cs:57 唯一消费者，该测试册已 ignore 登记）；
+    rust 侧采用 wbase::pool 单形态 BufferPool 承接，结构体字段对齐由 repr(align(64)) 编译期强保证，
+    无需运行时偏移量测试辅助。

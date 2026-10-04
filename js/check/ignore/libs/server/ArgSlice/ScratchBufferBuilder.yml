@@ -1,0 +1,7 @@
+# RESP 拼装缓冲机制收敛：C# ScratchBufferBuilder 仅是指针缓冲管理壳，
+# StartCommand/WriteArgument/WriteNullArgument 内部即 RespWriteUtils.TryWrite* 委托
+- 文件:
+    - libs/server/ArgSlice/ScratchBufferBuilder.cs
+  理由: rust 单点收敛至 wresp::RespWriter/RespVecExt（wresp/src/resp_memory_writer.rs
+    对标 libs/common/RespWriteUtils.cs），wlua 的 redis.call 请求拼装与 wnode 的
+    api.GET/SET 特例直写 Vec<u8>；Reset 零分配复用语义由 Vec clear 保留容量承接

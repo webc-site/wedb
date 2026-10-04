@@ -1,0 +1,21 @@
+# StartSizeTrackers 随 CacheSizeTracker 整类不移植（fixloop cache-size-tracker-dead-sides）。
+# StoreWrapper.StartSizeTrackers（:843）转发 databaseManager.StartSizeTrackers，
+# 并在 :72 暴露 sizeTracker 属性；二者均为 CacheSizeTracker 的对外启动/读取面。
+# rust 判定不移植追踪器（无 Tsavorite LogSizeTracker 对位，内存压力由 wcol 分层迟滞
+# 承接，详见 Storage/SizeTracker/CacheSizeTracker.yml），故本启动转发方法移除。
+- 文件:
+    - libs/server/StoreWrapper.cs:
+        - StartSizeTrackers
+  理由: >-
+    CacheSizeTracker 判定不移植，StoreWrapper 对其启动的转发方法随之移除；
+    sizeTracker 属性同为该追踪器的暴露面，随整类一并移除。
+
+# StoreWrapper.TryGetDatabase（:575 dbId→GarnetDatabase 反查，多库字典消费面）：
+# rust 单库折叠，管理器常持唯一库直引用，无 dbId 反查面（接口与基类/
+# Single 三声明见各自 yml 同批条目）。
+- 文件:
+    - libs/server/StoreWrapper.cs:
+        - TryGetDatabase
+  理由: >-
+    单库折叠无反查面：dbId→库反查仅服务 C# 多库字典形态，rust 单管理器
+    唯一库直引用，结构性无第二实例，四处声明随折叠一并消亡。

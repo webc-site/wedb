@@ -1,0 +1,7 @@
+# C# 存储过程键哈希收集器整类：随 RUNTXP 动态存储过程面删除（transpile 纪律
+# 「杜绝运行时动态注册，编译期静态分发」；本仓执行记录见 wnode aof_processor.rs
+# 「该收集器与其按哈希路由的时间戳入口已随本移除清除」）。AddHash /
+# UpdateSequenceNumber 为该类仅存两臂，类既删，臂不转写。
+- 文件:
+    - libs/server/AOF/ReadConsistency/CustomProcedureKeyHashCollection.cs
+  理由: RUNTXP 动态存储过程面整族删除，无按过程哈希路由的时间戳收集需求

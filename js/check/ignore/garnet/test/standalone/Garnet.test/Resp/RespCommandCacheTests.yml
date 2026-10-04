@@ -1,0 +1,5 @@
+- 文件:
+    - test/standalone/Garnet.test/Resp/RespCommandCacheTests.cs:
+        - CachedCommandDoesNotTruncateArgumentCount
+  理由: 刻意不移植（对齐 test.yml 既有判例）：C# RespCommandCache 会话命令缓存测试；
+    rust 命令分发为编译期静态目录（wresp catalog + wnode resp_dispatch），无动态命令缓存机制。

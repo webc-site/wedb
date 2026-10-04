@@ -1,0 +1,14 @@
+# 流式迁移发布域的两处 rust 不复刻面（fix-dead-batch-six）：
+# StreamedPublishLogArg 是 C# RMW「自动记 AOF」的抑制哨兵（PrivateMethods.cs:811
+# 判 input.arg1 == StreamedPublishLogArg 跳过自动记录，Migration.cs:199 在迁移发布
+# RMW 上置位）——rust 的 AOF 记录为显式 enqueue（service.rs StoreEvent 通道一处
+# 承接），不存在「自动记录需抑制」的机制位，哨兵常量在 rust 全仓零生产消费，已删。
+# SetAofStreamChunkSize 在 C# 仅 test/cluster/Garnet.test.cluster/ClusterTestContext.cs:420
+# 作测试配置钩子（生产零调用，分块用默认值）；rust 流分块大小恒由发布方按场景给定
+# （RangeIndexStreamArgs.chunk_size），边界校验测试为 rust 自产已随之删除。
+- 文件:
+    - libs/server/Resp/RangeIndex/RangeIndexManager.Replication.cs:
+        - StreamedPublishLogArg
+        - SetAofStreamChunkSize
+  理由: rust AOF 记录为显式入队无自动记录抑制位（哨兵无承接位）；分块 setter
+    在 C# 亦仅测试钩子消费，rust 恒用发布方给定分块大小

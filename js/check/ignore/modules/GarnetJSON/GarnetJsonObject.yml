@@ -1,0 +1,9 @@
+# GarnetJsonObject.Dispose（:128 释放 GET 包装的 rootGetWriter 等托管面）：
+# rust 值语义所有权即释放——对象随作用域 Drop，GET 包装器生命周期由借用
+# 承接，无显式 Dispose 口。
+- 文件:
+    - modules/GarnetJSON/GarnetJsonObject.cs:
+        - Dispose
+  理由: >-
+    所有权即释放：C# 显式 Dispose 释放的托管面在 rust 由所有权 Drop 与
+    借用生命周期自然收尾，无第二释放口。

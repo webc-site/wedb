@@ -1,0 +1,19 @@
+# LuaStateWrapper 栈面壳口清理（零消费 pub 面普查批五）
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - UpdateStackTop
+        - PushCFunction
+        - PushConstantString
+        - TryEnsureMinimumStackCapacity
+  理由: >-
+    rust 侧栈高由 Luau C API 自持（lua_gettop/lua_settop 内联于 pop/clear_stack），
+    不另维护栈顶缓存字段；宿主函数注册单点为 LuaState::register_host_fn（注册即带
+    上值），不另开裸 PushCFunction 口；常量串经 push_buffer + try_ref/push_ref 单点
+    入表；压栈前容量预检由 VM 自扩栈承担，故四口在本仓零生产调用，按普查纪律删除。
+- 文件:
+    - libs/server/Lua/LuaStateWrapper.cs:
+        - Unref
+  理由: >-
+    rust LuaRunner 无 Dispose 面，整 VM Drop 即 lua_close 一次性回收全部注册表
+    引用，无逐引用弃用生命周期；C# LuaRunner 弃用时经 Unref 清 functionRegistryIndex
+    的清理位在 rust 无对应生命周期，try_ref 产出的引用由注册表持有至 VM 关闭。

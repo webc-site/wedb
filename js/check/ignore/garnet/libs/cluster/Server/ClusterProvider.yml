@@ -1,0 +1,11 @@
+# ClusterProvider.FlushDB（:150 unsafeTruncateLog 臂直推
+# Log.ShiftBeginAddress(truncateLog)）：rust 清库单点在 SingleDatabaseManager
+# flush 主路径——wkv O(1) 虚拟换号 + FlushDb 广播条目
+#（wnode/src/database/single_database_manager.rs），物理截断臂结构性不存在，
+# 集群管理器不设第二清库口。
+- 文件:
+    - libs/cluster/Server/ClusterProvider.cs:
+        - FlushDB
+  理由: >-
+    O(1) 虚拟换号清库单点已在 SingleDatabaseManager flush 主路径承接，
+    unsafeTruncateLog 物理截断臂结构性不存在，集群侧直臂无对应面。

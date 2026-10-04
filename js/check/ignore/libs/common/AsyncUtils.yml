@@ -1,0 +1,10 @@
+- 理由: >-
+    C# 同步收割辅助（Task/ValueTask
+    GetAwaiter().GetResult()）。compio thread-per-core
+    全链 async 化后同步内联驱动已废除（wbase/src/future.rs
+    模块头历史注记：旧 blocking_wait/inline_wait
+    两口随任务栈内同步收割退役删除，重入 compio 调度器会击穿 executor
+    迭代器断言）；异步衔接一律协程让渡或挂起臂登记 + 泵 await，不复刻内联驱动第三形态
+  文件:
+    - libs/common/AsyncUtils.cs:
+        - BlockingWait

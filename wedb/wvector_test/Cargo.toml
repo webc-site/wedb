@@ -1,0 +1,18 @@
+[package]
+name = "wvector_test"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wvector_test"
+description = "Wedb integration-test support over wvector: in-memory StoreCallbacks bridge"
+keywords = ["database", "key-value", "test", "testing"]
+categories = ["database-implementations", "development-tools", "development-tools::testing"]
+
+[dependencies]
+parking_lot.workspace = true
+wbase = { workspace = true, features = ["map"] }
+wvector.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,10 @@
+- 文件:
+    - libs/cluster/Server/Replication/ReplicationNetworkBufferSettings.cs
+  理由: C# 复制流每流差异化缓冲规格整面（RSS/IRS/AOF 三套 NetworkBufferSettings、
+    GetInclusive 聚合与 ValidateNetworkBufferSettings 校验）。rust 复制采全局单池——
+    replication_manager.network_pool 以 wbase 单点 DEFAULT_BUFFER_SIZE 直建
+    LimitedFixedBufferPool，三套规格在 rust 全仓零消费（仅同文件自证测试），
+    判定为死规格随类型整删；各流分包/装批尺寸在 rust 装配点本地常量承接
+    （replica_diskless_sync/snapshot_transmission/aof_sync_task 等），行为口径不变，
+    不设第二规格对象（对应 wbase 规格面删除登记见
+    garnet/libs/common/NetworkBufferSettings.yml）

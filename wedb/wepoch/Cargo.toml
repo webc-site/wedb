@@ -1,0 +1,33 @@
+[package]
+name = "wepoch"
+version = "0.1.5"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wepoch"
+description = "LightEpoch epoch protection for safe memory reclamation"
+keywords = ["epoch", "smr", "lock-free", "memory-reclamation", "concurrency"]
+categories = ["concurrency", "memory-management", "data-structures", "database-implementations", "algorithms"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+log = { workspace = true }
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["backoff", "thread"] }
+whasher = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log_init = { workspace = true }
+parking_lot = { workspace = true }
+static_assertions = "1.1.0"
+
+[lints]
+workspace = true

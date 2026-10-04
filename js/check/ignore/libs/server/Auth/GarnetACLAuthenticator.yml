@@ -1,0 +1,8 @@
+- 理由: >-
+    C# 取 ACL getter 在 rust 由
+    wacl/src/auth/garnet_acl_authenticator.rs 的 pub
+    acl: Arc<AccessControlList> 字段直出承接（认证器无状态基座，ACL
+    全服唯一实例），getter 壳不单独成口
+  文件:
+    - libs/server/Auth/GarnetACLAuthenticator.cs:
+        - GetAccessControlList

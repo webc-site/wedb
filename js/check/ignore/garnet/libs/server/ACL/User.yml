@@ -1,0 +1,14 @@
+# User.cs 只读口令集别名在 rust 判重复。
+#
+# C# `Passwords` 属性（libs/server/ACL/User.cs 只读暴露口令集）与
+# `CopyPasswordHashes` 为同一数据的两个出口；rust 消费面（ACL GETUSER
+# 口令渲染，wnode/src/resp/acl_commands.rs）统一走唯一实现
+# wacl/src/user.rs:copy_password_hashes（已锚 User.cs:CopyPasswordHashes），
+# 别名 passwords() 全仓零引用，按「一处定义」判重删除。
+
+- 文件:
+    - libs/server/ACL/User.cs:
+        - Passwords
+  理由: >-
+    与 CopyPasswordHashes 同数据双出口，rust 以唯一实现 copy_password_hashes
+    承接（消费面 ACL GETUSER 直调），口令集只读别名零消费，判重删除

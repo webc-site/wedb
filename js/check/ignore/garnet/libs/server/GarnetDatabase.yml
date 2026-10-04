@@ -1,0 +1,15 @@
+# GarnetDatabase.Dispose（C# :164-186）：等待检查点锁、依次 Dispose Store /
+# KvSettings 日志设备 / 对象日志设备 / AOF / 三个内部扫描会话、停 SizeTracker、
+# 关停向量重放。rust 的 GarnetDatabase 是纯句柄组（Arc<WedbStore>、
+# Arc<GarnetAppendOnlyFile>、Arc<D> 等字段，见 wnode/src/database/
+# garnet_database.rs），无独占资源与显式生命周期管理面：设备/日志/引擎的
+# 停机与刷盘收尾由各自类型的 Drop（引用计数归零）承接，检查点互斥由
+# checkpoint_paused 原子闸承接且作用域不跨实例寿命，SizeTracker 判定不移植
+# （见 SizeTracker/CacheSizeTracker.yml），向量域清理随 VectorManager Drop。
+# C# 的 disposed 幂等标志在 rust 所有权模型下由「Drop 仅发生一次」天然保证。
+- 文件:
+    - libs/server/GarnetDatabase.cs:
+        - Dispose
+  理由: >-
+    rust 所有权模型下 GarnetDatabase 为纯句柄组，引擎/设备/AOF 生命周期由
+    Arc 引用计数与各类型 Drop 承接，无显式 Dispose 面可映射。

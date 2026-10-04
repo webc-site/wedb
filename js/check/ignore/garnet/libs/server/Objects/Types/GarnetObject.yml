@@ -1,0 +1,22 @@
+# task/ing/data-check-ledger-hygiene.md 问题 二.2：GarnetObject 静态工厂与初值判定矩阵。
+# 取证：C# GarnetObject.cs:18 Create(GarnetObjectType) 是四类型 switch 工厂、:34
+# NeedToCreate(RespInputHeader) 是逐操作 false 表（ZREM/SREM/LPOP… 缺键不建）。
+# rust 无同名件，两点皆按 SKILL.md:77 登记语义落点、不造占位工厂（SKILL.md:79）：
+# 一、类型分发：对象信封由 wval 类型标签 + bitcode 直构承担
+# （wcol/src/types/ 与 wval 侧按类型枚举建空件），无 C# 那层 IGarnetObject 装箱工厂；
+# 二、初值判定：「缺失键操作后保持缺失」的逐操作矩阵按命令臂就地实现并被注释点名，
+# 现刻命中 wnode/src/resp/objects/hash_commands/mod.rs:72、
+# set_commands/mod.rs:115、list_commands/mod.rs:184、
+# sorted_set_commands/mod.rs:105、list_commands/write.rs:67（LPUSHX/RPUSHX 臂）与
+# wnode/src/aof/aof_processor_object_replay.rs:328（重放侧同口径），
+# 即多对一 + 语义散落，无单点可挂
+- 文件:
+    - libs/server/Objects/Types/GarnetObject.cs:
+        - Create
+        - NeedToCreate
+  理由: >-
+    静态工厂与按操作初值判定矩阵在 rust 拆为两处承担：类型构造走 wval 枚举 +
+    bitcode 直构，缺键是否建件按命令臂就地判定（wnode/src/resp/objects/
+    {hash,set,list,sorted_set}_commands 与 list_commands/write.rs 的 PUSHX 臂、
+    aof_processor_object_replay.rs 重放臂，均已在注释点名 NeedToCreate 口径），
+    无同名单点，按转写红线不造占位工厂

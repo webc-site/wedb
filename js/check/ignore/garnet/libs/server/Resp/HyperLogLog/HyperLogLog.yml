@@ -1,0 +1,26 @@
+# C# 两个私有单哈希拷贝臂（SparseToDenseCopy：InitDense+SparseToDense+
+# UpdateDense；SparseToSparseCopy：MemoryCopy+UpdateSparse）全仓零调用点
+# （grep 语料仅定义行），属死码；其组合语义由 rust copy_update 稠密化/
+# 扩容双臂吸收对位 C# CopyUpdate（wedb/whyperlog/src/sparse.rs:204）。
+- 文件:
+    - libs/server/Resp/HyperLogLog/HyperLogLog.cs:
+        - SparseToDenseCopy
+        - SparseToSparseCopy
+  理由: >-
+    C# 私有臂全仓零消费者，属死码不转写；单哈希拷贝更新组合语义由
+    rust copy_update 稠密化/扩容双臂承接（锚 C# CopyUpdate），tests.rs
+    copy_paths 注记同源。
+
+# 调试打印与校验私有/无外部消费者死代码（Dump*/Compare* 系列）
+- 文件:
+    - libs/server/Resp/HyperLogLog/HyperLogLog.cs:
+        - CompareSparseToDense
+        - DumpDenseRegs
+        - DumpRawBytes
+        - DumpRegs
+        - DumpSparseRawBytes
+        - DumpSparseRegs
+  理由: C# HyperLogLog.cs:1094-1236 的 DumpRawBytes/DumpRegs/DumpSparseRegs/DumpDenseRegs/
+    DumpSparseRawBytes/CompareSparseToDense 均为面向调试的控制台打印（Console.WriteLine）
+    或调试校验函数，全仓外部生产代码零消费者（仅同文件内自用或调试），属死代码不向下移植。
+

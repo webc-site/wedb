@@ -1,0 +1,26 @@
+- 理由: AllocateTestContexts C# 亦零生产调用（测试用途 API），rust 测试未消费；
+    ExtractContextFromNamespaces/StoreContextInNamespace C# 迁移路径活跃，
+    rust 迁移链路当前走 chunk deserializer 与 publish_migrated_range_index 的
+    AlreadyExists 错误通道，无消费点，孤立纯函数删除，待迁移功能补齐时随链路恢复
+  文件:
+    - libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:
+        - AllocateTestContexts
+        - ExtractContextFromNamespaces
+        - StoreContextInNamespace
+- 理由: |-
+    BeginFlush/FlushGuard 刻意不移植：C# 语义有二，其一「清库窗口」互斥——
+    包住 DatabaseManagerBase.FlushDatabase 内 ShiftBeginAddress 物理截断窗，
+    rust wkv flush_database/flush_namespace 为 O(1) 虚拟换号（lock_dbmeta
+    锁内单格 CAS 换指 <1μs + DbMeta 原子批，旧域延时 GC，会话纪元防脏写），
+    无物理截断窗口可包；其二「截断后重置上下文空间」——rust 由
+    reclaim_registry/reclaim_registry_domain 域精确回收承接（主端 flush 四臂
+    与 AOF 重放三臂共用）。且 C# 每库一个 VectorManager，全清范围天然限库；
+    rust VectorManager 进程级单例（共享单日志多库），全局重置会抹掉他库存活
+    上下文位，接线即错（task/ing/design-dangling-links.md 条目2，路径 B）
+  文件:
+    - libs/server/Resp/Vector/VectorManager.ContextMetadata.cs:
+        - AllocateTestContexts
+        - ExtractContextFromNamespaces
+        - StoreContextInNamespace
+        - BeginFlush
+        - FlushGuard

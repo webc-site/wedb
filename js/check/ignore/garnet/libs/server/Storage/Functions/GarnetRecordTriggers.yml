@@ -1,0 +1,17 @@
+# C# OnDiskRead（GarnetRecordTriggers.cs:122，IRecordTriggers 磁盘回读钩子）在
+# 记录从冷区读回时失效存根内陈旧 TreeHandle（RangeIndex）与 DiskANN 索引指针
+#（Vector）。两目的在 rust 架构下均无存在必要：
+# 1. RangeIndex 存根句柄是注册表标识符而非原生指针，持久化后不复位、无悬空
+#    地址空间（wbftree/src/stub.rs:34、wkv/src/range_index/heal.rs:138），磁盘
+#    回读路径（wkv session/raw/read.rs read_from_disk）无需失效步骤；存根位级
+#    自愈由 range_index heal 内核（SetFlushedFlag/InvalidateStub 锚点）与
+#    RIPROMOTE/恢复路径承接；
+# 2. 向量索引指针仅属于写入进程地址空间，rust 只在恢复回放路径清理
+#    （vector_manager recovered_vector_set_index_key → clear_index_pointer），
+#    磁盘回读的值切片零拷贝交付 DiskANN，不缓存任何进程内索引指针。
+- 文件:
+    - libs/server/Storage/Functions/GarnetRecordTriggers.cs:
+        - OnDiskRead
+  理由: rust 单轨设计下存根句柄为注册表标识、向量指针仅随恢复清理，磁盘回读
+    天然无陈旧指针可失效，钩子无对应物；等价自愈见 wkv range_index heal 与
+    vector_registry_recovery

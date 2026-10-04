@@ -1,0 +1,9 @@
+- 理由: >-
+    事件类型为 #[derive(PartialEq)] 的 u8
+    枚举（wcol/src/itembroker/collection_item_broker_event.rs，NotSet=0），IsDefault()
+    语义由 event_type ==
+    CollectionItemBrokerEventType::NotSet
+    字段比较承接，不设独立判定方法
+  文件:
+    - libs/server/Objects/ItemBroker/CollectionItemBrokerEvent.cs:
+        - IsDefault

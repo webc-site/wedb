@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = ["crates/wedb-bench", "crates/wedb-bench-compare"]
+
+# 评测必须以 release 级别编译：cargo bench 走 profile.bench，它继承 profile.release
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+overflow-checks = false
+
+[profile.bench]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
