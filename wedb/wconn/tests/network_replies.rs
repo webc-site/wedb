@@ -101,7 +101,10 @@ fn test_dispatch_replies_str_array_null_bulk_element() {
   )
   .unwrap();
   assert_eq!(read_head, 0);
-  assert!(read_buf.is_empty(), "两帧整段消费完毕清空 read_buf 并复位游标");
+  assert!(
+    read_buf.is_empty(),
+    "两帧整段消费完毕清空 read_buf 并复位游标"
+  );
   assert_eq!(rx1.try_recv().unwrap().unwrap(), "");
   assert_eq!(rx2.try_recv().unwrap().unwrap(), "OK");
 }

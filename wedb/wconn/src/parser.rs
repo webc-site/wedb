@@ -142,9 +142,9 @@ impl RespReadResponseUtils {
       // RESP3 null: _\r\n → 空切片
       b'_' => Ok(Self::try_read_token_span(ptr, b'_')?.map(|_| &[][..])),
       // 嵌套集合仅消费帧：内容不保留（元素记空切片），内层 None 即元素未到齐
-      b'*' | b'~' | b'>' => Ok(
-        Self::try_read_byte_slice_array_with_length_header(ptr, depth + 1)?.map(|_| &[][..]),
-      ),
+      b'*' | b'~' | b'>' => {
+        Ok(Self::try_read_byte_slice_array_with_length_header(ptr, depth + 1)?.map(|_| &[][..]))
+      }
       b => Err(Self::unexpected_token(b)),
     })
   }
