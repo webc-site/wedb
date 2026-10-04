@@ -1,16 +1,21 @@
-//! VRANDMEMBER count 无界预分配进程中止面回归（票：wvector-vrandmember-count-unbounded-alloc-abort）
+//! VRANDMEMBER count 契约与无界预分配进程中止面回归（票：
+//! wvector-vrandmember-count-unbounded-alloc-abort + 080b05de1 对拍收口）
 //!
-//! 钳制契约：`network_vrandmember` 以 `service.card`（直读标量零成本）钳制
-//! count——正数取 min(count, card)，负数归零回空数组；钳制位收敛会话层单点，
-//! `service.sample` 不设第二道门。
+//! 契约（对齐 C# RespServerSessionVectors.cs:NetworkVRANDMEMBER 080b05de1
+//! 定形的 Redis-isms）：
+//! - 正 count：至多 count 个互异成员，会话层以 `service.card`（直读标量零
+//!   成本）钳制上界——钳制位收敛会话层单点，`service.sample` 不设第二道门；
+//! - 负 count：恰好 |count| 个成员、允许重复（可超基数，
+//!   `service.sample_with_repeats` 分批有界刮痕，无巨量预分配）；
+//! - i32::MIN：幅值无法以 i32 承载，回 "ERR count magnitude too large"。
 //!
-//! C# 锚：`VectorStoreOps.cs:VectorSetRandomMembers` 为零分配 TODO 桩
-//! （`// TODO: Implement!` + `idResults.Length = 0`，count 从未消费），
-//! 接口注释钉 "It is OK to fetch fewer than the requested number of elements"
-//! （IGarnetApi.cs:2154，少取合法）——card 内全量返回即契约上界。不钳则
-//! sample 按 count 两笔 vec 预分配（12B/ID，`VRANDMEMBER key 2147483647`
-//! ≈ 25.7GB + 8.6GB），分配失败默认 abort 整进程（拒绝服务面）；同族
-//! VSIM COUNT 有 MAX_RETRIEVE_COUNT 门，本命令以 card 承担对称防御。
+//! C# 锚：`VectorStoreOps.cs:VectorSetRandomMembers` 接口注释钉 "It is OK to
+//! fetch fewer than the requested number of elements"（IGarnetApi.cs:2154，
+//! 少取合法）——card 内全量返回即正 count 契约上界。不钳则 sample 按 count
+//! 两笔 vec 预分配（12B/ID，`VRANDMEMBER key 2147483647` ≈ 25.7GB + 8.6GB），
+//! 分配失败默认 abort 整进程（拒绝服务面）；同族 VSIM COUNT 有
+//! MAX_RETRIEVE_COUNT 门，本命令以 card 承担对称防御。
+
 use std::{fs::remove_dir_all, sync::Arc};
 
 use wbase::hash_slot::slot_of;
@@ -165,9 +170,10 @@ async fn oversized_count_single_element_set_returns_single() {
   let _ = remove_dir_all(dir.path());
 }
 
-/// 负 count 归零回空数组（现状维持，含 i32::MIN 下界）。
+/// 负 count：带重复取样恰好 |count| 个（可超基数；C# VRANDMEMBERAsync
+/// res5-res7 同型对拍）；i32::MIN 回幅值错误帧（080b05de1 守卫）。
 #[compio::test]
-async fn negative_count_returns_empty_array() {
+async fn negative_count_samples_with_repeats() {
   let (dir, store, sess) = harness();
   let _domain = OwnedActiveVectorSession::new(store.new_session().unwrap());
   let root = SessionPrefixBuf::ROOT.as_slice();
@@ -182,15 +188,40 @@ async fn negative_count_returns_empty_array() {
     int_frame(1)
   );
 
-  for n in ["-1", "-5", "-2147483648"] {
+  // 单元素集：|count| 恰为请求个数且全为该成员（带重复，可超基数）
+  for n in [-1_i32, -5, -64] {
+    let items = bulk_items(
+      &sess
+        .network_vrandmember(root, &[b"vk", n.to_string().as_bytes()])
+        .await,
+    );
     assert_eq!(
-      frame2(&sess.network_vrandmember(root, &[b"vk", n.as_bytes()]).await),
-      array_frame(&[]),
-      "负 count {n} 应维持回空数组现状"
+      items,
+      vec![b"k1".to_vec(); n.unsigned_abs() as usize],
+      "负 count {n} 应回带重复的恰量样本（C# allowDuplicates 臂）"
     );
   }
 
+  // i32::MIN：幅值溢出 int 正域，错误帧文案对齐 C# 字面量
+  assert_eq!(
+    err_frame(
+      &sess
+        .network_vrandmember(root, &[b"vk", b"-2147483648"])
+        .await
+    ),
+    "ERR count magnitude too large",
+    "i32::MIN count 应回幅值错误帧（C# 字面量）"
+  );
+
   let _ = remove_dir_all(dir.path());
+}
+
+/// 错误帧文案提取（Error 变体 → 前缀剥离文本）
+fn err_frame(reply: &VectorReply) -> String {
+  match reply {
+    VectorReply::Error(msg) => String::from_utf8_lossy(msg).to_string(),
+    other => panic!("应答应为错误帧，实际 {other:?}"),
+  }
 }
 
 /// 缺键大 count 回空数组（NOTFOUND 臂不受钳制影响，防倒退）。

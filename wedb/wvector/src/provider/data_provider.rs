@@ -598,6 +598,56 @@ impl<T: ToDistanceComputer, S: StoreCallbacks> WedbProvider<T, S> {
     true
   }
 
+  /// 带重复随机取样元素（VRANDMEMBER 负 count 通道；对标
+  /// libs/server/Resp/Vector/VectorManager.cs:RandomMembers 的
+  /// allowDuplicates=true 臂——不设去重，count 可超存活基数，逐次独立
+  /// 均匀抽铸 id 空间、存活即收）。
+  ///
+  /// 与 [`Self::random_members`] 同型拒绝采样（fastrand 全局非种子化流），
+  /// 差异仅两点：不放回的 `choose_multiple` 换为逐笔独立抽取、缺去重环；
+  /// 存活数可少于请求数时不提前收敛（重复合法）。批配额按存活占比放大，
+  /// 批内零命中时翻倍重试直至批宽触及 id 空间——存活 ≥ 1 时每轮命中概率
+  /// ≥ 1-1/e，几何分布几乎必然收敛。
+  pub async fn random_members_with_repeats(
+    &self,
+    context: &Context,
+    count: usize,
+    output: &mut SearchResults<'_>,
+  ) -> bool {
+    let id_space = self.max_internal_id() as usize + 1;
+    // 账面空集（含仅起点 id）直接收口：拒绝采样无命中源，禁无限空转
+    let total_vectors = self.fsm.total_used();
+    if total_vectors == 0 || id_space == 0 {
+      return true;
+    }
+
+    let mut remaining = count;
+    let mut batch = remaining
+      .saturating_mul(id_space)
+      .div_ceil(total_vectors)
+      .clamp(1, id_space);
+
+    while remaining > 0 {
+      // 逐笔独立放回抽取（每笔等概率覆盖铸 id 空间，存活即命中）
+      for _ in 0..batch {
+        let samp = fastrand::usize(..id_space) as u32;
+        let Ok(eid) = self.to_external_id(context, samp).await else {
+          continue;
+        };
+
+        let state = output.push_id(eid);
+        remaining -= 1;
+        if remaining == 0 || state == BufferState::Full {
+          return true;
+        }
+      }
+
+      // 批内零命中放大批宽（存活占比过稀时的收敛保障）
+      batch = batch.saturating_mul(2).min(id_space).max(1);
+    }
+
+    true
+  }
 }
 
 impl<T: ToDistanceComputer, S: StoreCallbacks> DataProvider for WedbProvider<T, S> {

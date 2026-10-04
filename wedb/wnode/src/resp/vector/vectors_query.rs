@@ -13,7 +13,7 @@ use wvector::{
 
 use super::{
   resp_server_session_vectors::{
-    ERR_COUNT_RANGE, ERR_EF_RANGE, ERR_EPSILON_MUST_BE_POSITIVE,
+    ERR_COUNT_MAGNITUDE_TOO_LARGE, ERR_COUNT_RANGE, ERR_EF_RANGE, ERR_EPSILON_MUST_BE_POSITIVE,
     ERR_EXPECTED_INTEGER_COUNT, ERR_FILTER_EF_RANGE, ERR_KEY_NOT_FOUND, ERR_UNKNOWN_OPTION,
     ERR_VEMB_UNEXPECTED_OPTION, ERR_VLINKS_UNEXPECTED_OPTION, RespServerSessionVectors,
     VectorReply, bool_reply, dup_flag, err_dup, wna_entry,
@@ -482,12 +482,16 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
 
   /// libs/server/Resp/Vector/RespServerSessionVectors.cs:NetworkVRANDMEMBER
   ///
-  /// C# 侧输出为 TODO（恒 +OK）；此处返回实际取样元素（超集语义）。
-  /// C# 对位 VectorStoreOps.cs:VectorSetRandomMembers 锁点 :541——守卫随
-  /// 本 async 栈帧跨取样 await 存活。
+  /// `VRANDMEMBER key [count]`。回复契约对齐 C# 080b05de1 定形（Redis-isms）：
+  /// - 缺 count：单成员 bulk / 缺集 null；
+  /// - count ≥ 0：至多 count 个互异成员（少取合法，IGarnetApi.cs:2154），
+  ///   会话层以 card 钳制上界（DoS 防御，`service.sample` 不设第二道门）；
+  /// - count < 0：恰好 |count| 个成员、允许重复（可超基数）；
+  /// - count == i32::MIN：幅值无法以 i32 承载，回
+  ///   [`ERR_COUNT_MAGNITUDE_TOO_LARGE`]（C# "ERR count magnitude too large"）。
   ///
-  /// count 钳制：正数取 min(count, card)（C# 少取合法契约），负数归零回空
-  /// 数组；会话层单点钳制，service.sample 不设第二道门。
+  /// C# 对位 VectorStoreOps.cs:VectorSetRandomMembers——守卫随本 async 栈帧
+  /// 跨取样 await 存活。
   pub async fn network_vrandmember(&self, prefix: &[u8], args: &[&[u8]]) -> VectorReply {
     wna_entry!(self, args, 1..=2, "VRANDMEMBER");
     let count = match args.get(1) {
@@ -499,6 +503,10 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
       }
       None => 1,
     };
+    // C# 080b05de1：int.MinValue 的幅值溢出 int 正域，先行拒绝
+    if count == i32::MIN {
+      return VectorReply::err(ERR_COUNT_MAGNITUDE_TOO_LARGE);
+    }
     let (Some(index), _guard) = self.manager.read_vector_index(prefix, args[0]).await else {
       // 对齐 C# NOTFOUND：指定 count → 空数组；未指定 → null
       return if args.len() == 2 {
@@ -507,13 +515,22 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         VectorReply::Bulk(None)
       };
     };
-    // 钳制：正 count 取 min(count, card)。C# VectorStoreOps.cs:VectorSetRandomMembers
-    // 为零分配 TODO 桩，接口注释钉 "It is OK to fetch fewer than the requested
-    // number of elements"（IGarnetApi.cs:2154，少取合法），card 即天然上界；
-    // 不钳则 sample 按 count 两笔 vec 预分配（12B/ID，i32::MAX ≈ 25.7GB）分配
-    // 失败直接 abort 进程（拒绝服务面），同族 VSIM COUNT 有 MAX_RETRIEVE_COUNT
-    // 门，本命令以 card 承担对称防御。负 count 归零维持回空数组现状；
-    // card 直读标量零成本。
+    // 显式负 count：带重复取样（|count| 个，可超基数）
+    if count < 0 {
+      let samples = self
+        .manager
+        .service
+        .sample_with_repeats(index.context, count.unsigned_abs() as usize)
+        .await;
+      return VectorReply::Array(
+        samples
+          .into_iter()
+          .map(|v| VectorReply::Bulk(Some(v.into())))
+          .collect(),
+      );
+    }
+    // 钳制：正 count 取 min(count, card)。card 直读标量零成本，互异取样
+    // 的天然上界（负 count 走上方带重复臂，不受此钳）。
     let count = (count.max(0) as usize).min(self.manager.service.card(index.context) as usize);
     let samples = self.manager.service.sample(index.context, count).await;
     // 未指定 count（默认 1）回 bulk 单元素/缺集 null；显式 count 恒走数组臂。
@@ -532,5 +549,4 @@ impl<S: StoreCallbacks> RespServerSessionVectors<S> {
         .collect(),
     )
   }
-
 }

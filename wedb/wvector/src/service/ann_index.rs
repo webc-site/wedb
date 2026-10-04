@@ -170,6 +170,13 @@ pub(crate) trait AsyncDynIndex: Send + Sync {
     output: &'a mut SearchResults<'_>,
   ) -> impl Future<Output = bool> + Send + 'a;
 
+  /// 带重复随机取样元素（count 可超存活基数；VRANDMEMBER 负 count 通道）。
+  fn random_members_with_repeats<'a>(
+    &'a self,
+    context: &'a Context,
+    count: usize,
+    output: &'a mut SearchResults<'_>,
+  ) -> impl Future<Output = bool> + Send + 'a;
 
   /// 外部 ID 解析为内部 ID。
   fn internal_id_of(
@@ -412,6 +419,18 @@ impl<T: ToDistanceComputer, S: StoreCallbacks> AsyncDynIndex for DiskANNIndex<We
       .await
   }
 
+  async fn random_members_with_repeats<'a>(
+    &'a self,
+    context: &'a Context,
+    count: usize,
+    output: &'a mut SearchResults<'_>,
+  ) -> bool {
+    self
+      .inner
+      .provider()
+      .random_members_with_repeats(context, count, output)
+      .await
+  }
 
   async fn internal_id_of(&self, context: &Context, id: &VectorSetId) -> Option<u32> {
     self.inner.provider().to_internal_id(context, id).await.ok()
@@ -525,6 +544,9 @@ impl<S: StoreCallbacks> AsyncDynIndex for IndexImpl<S> {
     ) -> ANNResult<Vec<Neighbor<VectorSetId>>>;
     async fn random_members<'a>(
       &'a self, context: &'a Context, count: u32, output: &'a mut SearchResults<'_>,
+    ) -> bool;
+    async fn random_members_with_repeats<'a>(
+      &'a self, context: &'a Context, count: usize, output: &'a mut SearchResults<'_>,
     ) -> bool;
     async fn internal_id_of(&self, context: &Context, id: &VectorSetId) -> Option<u32>;
     async fn maybe_set_start_point(&self, context: &Context, data: &[u8]) -> ANNResult<()>;

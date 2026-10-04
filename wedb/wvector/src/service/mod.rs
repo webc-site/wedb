@@ -69,6 +69,10 @@ const ID_PREFIX_BYTES: usize = mem::size_of::<u32>();
 /// `MinimumSpacePerId = sizeof(int) + 8`）。
 const MIN_SPACE_PER_ID: usize = ID_PREFIX_BYTES + 8;
 
+/// 带重复取样的单批刮痕上界（[`Self::sample_with_repeats`] 分批恒定刮痕
+/// 空间，批宽与总请求数解耦）。
+const SAMPLE_REPEATS_CHUNK: usize = 4096;
+
 /// 按 `[4B LE 长度][载荷]` 协议向目标切片写出一条 id——内联缓冲与
 /// 溢出缓冲共用的唯一写出机制，杜绝两路编码漂移。
 ///
@@ -704,4 +708,40 @@ impl<S: StoreCallbacks> DiskANNService<S> {
     out.iter().map(|(id, _)| id.to_vec()).collect()
   }
 
+  /// 带重复随机取样元素外部 id（VRANDMEMBER 负 count 通道；C#
+  /// libs/server/Resp/Vector/VectorManager.cs:RandomMembers 的
+  /// allowDuplicates=true 臂——不设去重，count 可超存活基数，恰好返回
+  /// count 个）。
+  ///
+  /// 刮痕暂存按 [`SAMPLE_REPEATS_CHUNK`] 分批有界，杜绝按总请求数预分配的
+  /// 巨量分配面；应答自身仍 O(count)，与请求方显式请求的元素数线性同源
+  /// （C# 侧同直面）。
+  pub async fn sample_with_repeats(&self, context: u64, count: usize) -> Vec<Vec<u8>> {
+    let Some(index) = self.index(context) else {
+      return Vec::new();
+    };
+    let ctx = Context::new(context);
+    let mut out = Vec::new();
+    while out.len() < count {
+      let chunk = (count - out.len()).min(SAMPLE_REPEATS_CHUNK);
+      let mut ids = vec![0u8; chunk * MIN_SPACE_PER_ID];
+      let mut dists = vec![0f32; chunk];
+      let mut output = SearchResults::new(chunk, &mut ids, &mut dists);
+      if !index
+        .inner
+        .random_members_with_repeats(&ctx, chunk, &mut output)
+        .await
+      {
+        return Vec::new();
+      }
+      let collected = output.into_search_output();
+      let got: Vec<Vec<u8>> = collected.iter().map(|(id, _)| id.to_vec()).collect();
+      if got.is_empty() {
+        // 存活数塌缩为零（并发删空窗）：按既有样本收口，禁空转
+        return out;
+      }
+      out.extend(got);
+    }
+    out
+  }
 }

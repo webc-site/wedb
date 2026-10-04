@@ -69,6 +69,9 @@ pub(super) const ERR_VEMB_UNEXPECTED_OPTION: &[u8] = b"Unexpected option to VEMB
 pub(super) const ERR_KEY_NOT_FOUND: &[u8] = b"ERR Key not found";
 pub(super) const ERR_VLINKS_UNEXPECTED_OPTION: &[u8] = b"ERR Unexpected option";
 pub(super) const ERR_EXPECTED_INTEGER_COUNT: &[u8] = b"ERR expected integer count";
+/// VRANDMEMBER count 幅值溢出（对齐 C# RespServerSessionVectors.cs:1806
+/// `int.MinValue` 守卫文案，080b05de1 定形）。
+pub(super) const ERR_COUNT_MAGNITUDE_TOO_LARGE: &[u8] = b"ERR count magnitude too large";
 
 /// 选项重复文案（对齐 C# `"<OPT> specified multiple times"` 字面量）。
 macro_rules! err_dup {
