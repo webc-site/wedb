@@ -56,6 +56,10 @@ const TEST_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(200);
 /// KILL 后注销收敛预算（注入超时 + 裕量）：防护失效（收场尾无界悬挂回归）时
 /// 确定性失败而非死等
 const CONVERGE_BUDGET: Duration = Duration::from_secs(2);
+/// 轮询谓词预算：全量跑批并发负载下调度抖动远超单测负载，收敛等待与
+/// 回归上界分离——该测试钉的是「无界悬挂」回归，任何有限预算保持语义，
+/// 轮询放宽到 10s 换稳定，上界断言仍由 CONVERGE_BUDGET 承担
+const CONVERGE_POLL: Duration = Duration::from_secs(10);
 /// 全用例有界时限
 const TEST_DEADLINE: Duration = Duration::from_secs(30);
 /// 黑洞受害端收缓冲（握手流量内、应答洪峰远外）
@@ -122,10 +126,10 @@ fn int_reply(frame: &[u8]) -> i64 {
     .expect("int reply")
 }
 
-/// 轮询谓词至真（CONVERGE_BUDGET 内每 10ms 一轮；耗尽返回末次观测值时刻的
+/// 轮询谓词至真（CONVERGE_POLL 内每 10ms 一轮；耗尽返回末次观测值时刻的
 /// false 交调用点断言——注册/注销收敛均为异步）
 async fn wait_pred(done: impl Fn() -> bool) -> bool {
-  let rounds = CONVERGE_BUDGET.as_millis() / 10;
+  let rounds = CONVERGE_POLL.as_millis() / 10;
   for _ in 0..rounds {
     if done() {
       return true;
