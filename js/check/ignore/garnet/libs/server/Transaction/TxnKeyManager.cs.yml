@@ -1,0 +1,19 @@
+# 槽校验二段式与逐键属主校验在库级分片架构下的折叠（对照 doc/zh/db.md 第 4 节）：
+# rust 集群分片以 namespace -> db 为唯一单元（wbase::hash_slot::slot_of 单点，
+# 同库所有键恒同槽），彻底废除 Key Hash 与 CROSSSLOT。C# 按键的迭代槽校验
+# （Prepare 期 VerifyKeyOwnership 逐键 / EXEC 期 NetworkMultiKeySlotVerify 多键）
+# 在 rust 收敛为 EXEC 单点多键校验：wnode cluster_session.rs 承接
+# NetworkMultiKeySlotVerify，事务面经 TxnSession::verify_cluster_txn_keys 调用；
+# 校验失败在验证时就地渲染 MOVED / ASK / TRYAGAIN，无「缓存结果、事后补写」二段式。
+- 文件:
+    - libs/server/Transaction/TxnKeyManager.cs:
+        - WriteCachedSlotVerificationMessage
+        - VerifyKeyOwnership
+  理由: WriteCachedSlotVerificationMessage（写出缓存的槽校验失败消息）唯一调用方
+    RunTransactionProcInternal 已随动态注册事务过程层删除（同目录
+    TransactionManager.cs.yml RunTransactionProc 条目）；EXEC 路径 C# 亦由
+    NetworkMultiKeySlotVerify 直写 output（TxnRespCommands.cs NetworkEXEC），
+    rust 同构，缓存补写通道两侧生产均不可达。VerifyKeyOwnership（锁登记期逐键
+    迭代槽校验）唯一调用方 CustomTransactionProcedure.Prepare 属动态注册层，
+    按 SKILL 删除；且库级分片下同库键恒同槽、槽属主以 (ns, db) 整库粒度裁决，
+    逐键锁期校验无对应面，属主校验由 EXEC 单点 verify_cluster_txn_keys 承接。

@@ -1,0 +1,32 @@
+# lua 事务模式虚设链删除（task/done/lua-txn-mode-drop-placeholder.md）：
+# C# RespServerSession.SetTransactionMode（libs/server/Resp/RespServerSession.cs:620）
+# 全仓唯一调用面是 LuaRunner.RunInTransaction（:1345/:1359 开关脚本事务窗口）；
+# 该模式在 wedb 不转写（事务上下文内核不存在），rust 侧曾转写的同名置
+# TxnState::Running 钩子是其虚设半链（MULTI/EXEC 语义不经此口，走
+# wtxn::TransactionManager 单点），随链删除。
+- 文件:
+    - libs/server/Resp/RespServerSession.cs:
+        - SetTransactionMode
+  理由: 唯一调用面 RunInTransaction 不转写，rust 同名虚设钩子已删；
+    会话事务态只由 wtxn 事务域单点维护。
+- 文件:
+    - libs/server/Resp/RespServerSession.cs:
+        - NetworkCustomRawStringCmd
+  理由: >-
+    C# CustomRawStringCmd 是模块/REGISTERCS 运行期注册的命令分派哨兵（解析器
+    回填内部分派值后走该入口）；rust 按转写规范删除动态注册管理层，扩展命令
+    编译期静态接线，解析器对扩展命令只回填 Customobjcmd（wresp command.rs
+    编号 275/276/278 注、wnode resp_server_session/custom.rs 模块头），无路径
+    产出 CustomRawStringCmd，分派入口不转写。
+- 文件:
+    - libs/server/Resp/RespServerSession.cs:
+        - ResetLatencyMetrics
+        - ResetAllLatencyMetrics
+  理由: >-
+    C# 两口是监视器跨线程复位会话延迟槽的传送臂（CleanupGlobalLatencyMetrics /
+    ResetLatencySessionMetrics 遍历 ActiveConsumers 直调）。rust 会话延迟表为
+    连接任务独占的无锁双缓冲槽，不接受 &self 跨线程写口（即本票消除的写锁
+    根因）；退役槽由属主线程在版本翻转点归并全局后就地清零，复位结果与 C#
+    等价（见 wmetric garnet_latency_metrics_session.rs /
+    garnet_server_monitor.rs cleanup_global_latency_metrics 注），会话侧复位
+    臂不转写。

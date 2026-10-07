@@ -1,0 +1,81 @@
+export default {
+  "meta.title": "WeDB Bench",
+  "meta.description":
+    "wedb の redb と同形状のベンチマーク：wkv と wbftree を fjall、rocksdb、sqlite と比較。4 種のランナーイメージでの表、横棒比較チャート、コミット単位の推移。",
+
+  "nav.section.bars": "チャート",
+  "nav.section.trend": "推移",
+  "nav.section.table": "最新の表",
+  "nav.data": "機械可読データ",
+  "nav.github": "GitHub",
+  "nav.lang": "言語",
+
+  "hero.title": "redb と同じ尺度で測る wedb",
+  "hero.body":
+    "行順・単位・太字ルールはいずれも redb-bench に準拠：同じ 18 個のワークロードセグメント、同じレート単位、同じ行内最速マーク。検証対象は wedb 独自の wkv（ハッシュログ KV）と wbftree（順序付き B+ 木）、対照は fjall、rocksdb、sqlite。",
+  "hero.scale_standard": "redb 標準スケール",
+  "hero.headline": "{bulk} 一括 · {sorted} ソート済み · キー {key}B · 値 {value}B",
+  "hero.columns_platforms": "{columns} 列 · {platforms} プラットフォーム",
+  "hero.empty": "ベンチマークデータはまだありません：メインブランチの Benchmark が 1 回完了すると表示されます。",
+
+  "section.bars.title": "プラットフォーム別の直接比較",
+  "section.bars.desc": "ワークロードセグメントを選ぶと、同一プラットフォーム上の各エンジンを比較できます。棒の長さはそのセグメントの値で、★ は最速を示します。",
+  "section.trend.title": "コミット間の推移",
+  "section.trend.desc":
+    "同一プラットフォームの経時変化：メインブランチの実行ごとに 1 点。単発のスナップショットではなく性能退化の監視用です。点にホバーするとエンジン・バージョン・前回差が表示されます。",
+  "section.table.title": "最新の表",
+  "section.table.desc":
+    "選択したプラットフォームの最新実行の完全な表：行順・単位・太字ルールは redb が公開している表と同一で、並べて読めます。",
+
+  "pane.bars": "単一セグメント",
+  "pane.trend": "コミット間推移",
+  "bars.higher_better": "高いほど良い",
+  "bars.empty": "比較できるプラットフォームデータがありません。",
+  "bars.aria": "選択したワークロードセグメントにおける各エンジンの横棒比較",
+  "bars.best_hint": "★ セグメント内最速",
+
+  "trend.aria": "選択したワークロードセグメントにおける各エンジンのコミット別推移",
+  "trend.empty": "推移データはまだありません：メインブランチの実行が完了するごとに 1 点追加されます。",
+  "trend.dots":
+    "{n} 点 · 横軸の各点にはその回のバージョンを表示 · 欠落は該当列がその回で値を出力しなかったこと（クラッシュ、タイムアウト、または対象外）を意味し、線はそこで途切れ、補間しません。",
+  "trend.tip_delta": "前回比",
+  "trend.tip_na": "データなし",
+
+  "table.empty": "このプラットフォームには選択した回のデータがありません。",
+  "table.utc": "UTC",
+  "table.workload":
+    "{bulk} 一括 · {sorted} ソート済み · ランダム読み {reads} 回 · 範囲読み {scans}×{scan_len} · キー {key}B · 値 {value}B · キャッシュ {cache}",
+  "table.median_note":
+    "読み取り系セグメントは {n} 回の実行の中央値です。各列は独立したサブプロセスで実行されるため、クラッシュやタイムアウトが発生した列は全体が N/A になります。",
+  "status.crashed": "クラッシュ",
+  "status.timeout": "タイムアウト",
+  "commit.local": "ローカル",
+
+  "foot.line1":
+    "表はベンチ側（Rust）で生成されます：18 個のワークロードセグメント、単位ラベル、行内最速の太字化はすべて crates/wedb-bench にあり、サイトは機械可読の JSON を利用するだけで、この整形を再実装しません。",
+  "foot.line2":
+    "パイプライン：Benchmark ワークフローが 4 種のランナーイメージでエンジンごとに 1 列を実行し、benchreport merge がプラットフォーム別の表にまとめて履歴に追加し、Website ワークフローがサイトと履歴を gh-pages に公開します。",
+  "foot.line3": "データはメインブランチのベンチマーク実行後に更新されます。",
+  "foot.links": "リンク",
+  "foot.workflow_bench": "Benchmark ワークフロー",
+  "foot.workflow_website": "Website ワークフロー",
+
+  "bench.row.bulk_load": "一括ロード",
+  "bench.row.individual_writes": "個別書き込み",
+  "bench.row.small_batch_writes": "小バッチ書き込み",
+  "bench.row.sorted_inserts": "ソート済み挿入",
+  "bench.row.nosync_writes": "nosync 書き込み",
+  "bench.row.len": "len()",
+  "bench.row.random_reads": "ランダム読み",
+  "bench.row.random_range_reads": "ランダム範囲読み",
+  "bench.row.random_reads_4_threads": "ランダム読み（4 スレッド）",
+  "bench.row.random_reads_8_threads": "ランダム読み（8 スレッド）",
+  "bench.row.random_reads_16_threads": "ランダム読み（16 スレッド）",
+  "bench.row.random_reads_32_threads": "ランダム読み（32 スレッド）",
+  "bench.row.removals": "削除",
+  "bench.row.retain": "retain",
+  "bench.row.extract_if": "extract_if",
+  "bench.row.pop": "pop",
+  "bench.row.uncompacted_size": "非圧縮サイズ",
+  "bench.row.compacted_size": "圧縮後サイズ",
+};

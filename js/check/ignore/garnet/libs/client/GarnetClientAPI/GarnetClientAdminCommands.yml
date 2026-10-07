@@ -1,0 +1,10 @@
+# GarnetClientAdminCommands.Info（:41 INFO 便捷壳：INFO 命令词 +
+# GetRespFormattedInfoSection 预格式化拼装）：rust 客户端裁并便捷壳层，
+# wconn GarnetClient 仅保留 execute_for_string_result_async 通用口，INFO
+# 由调用方直发命令词承接。
+- 文件:
+    - libs/client/GarnetClientAPI/GarnetClientAdminCommands.cs:
+        - Info
+  理由: >-
+    便捷壳已裁，底层口直发：wconn 通用 execute_for_string_result_async
+    承接任意字符串命令，INFO 不设逐命令便捷方法。

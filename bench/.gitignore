@@ -1,0 +1,9 @@
+/target/
+/bench/target/
+data/*.json
+.benchmark/
+*.redb
+*.wkv
+*.bftree
+*.sqlite*
+.bench_run/

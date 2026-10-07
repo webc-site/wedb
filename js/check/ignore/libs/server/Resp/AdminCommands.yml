@@ -1,0 +1,9 @@
+- 理由: >-
+    no-script 门落点从 AdminCommands 档移至会话 lua
+    域：wnode/src/resp/resp_server_session/lua.rs
+    check_script_permissions（主循环门链 core.rs 与 C#
+    CheckACLPermissions && CheckScriptPermissions
+    对位，no_script_gate_tests/lua_script_tests 覆盖）
+  文件:
+    - libs/server/Resp/AdminCommands.cs:
+        - CheckScriptPermissions

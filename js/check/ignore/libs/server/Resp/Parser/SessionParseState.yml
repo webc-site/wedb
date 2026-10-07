@@ -1,0 +1,11 @@
+- 理由: >-
+    C#
+    返回子解析态实例的窗口裁剪改为同一结构体上的公开窗口字段（wresp/src/session_parse_state.rs
+    pub offset/pub count + parameters() 切 [offset,
+    offset+count)）；唯一非测试消费点 InputHeader.cs
+    parseState.Slice(startIdx) 随 rust InputHeader
+    不再携带 parseState 消解（wcol/src/resp/input.rs 仅存
+    flags 面）
+  文件:
+    - libs/server/Resp/Parser/SessionParseState.cs:
+        - Slice

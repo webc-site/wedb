@@ -1,0 +1,13 @@
+- 文件:
+    - test/standalone/Garnet.test.extensions/IndexGrowthTests.cs:
+        - IndexGrowthTest
+        - ObjectStoreIndexGrowthTest
+        - IndexGrowthTestWithDiskReadAndCheckpoint
+        - ObjectStoreIndexGrowthTestWithDiskReadAndCheckpoint
+        - VerifyObjectStoreSetMembers
+  理由: 断言 store.IndexSize 后台翻倍与 IndexResizeFrequencySecs 自动扩表的在线增长
+    测试，wedb 定容设计无此能力，不可移植 (归并去向见 libs/storage/Tsavorite/cs/src/core/
+    Index/Checkpointing/IndexResizeSMTask.yml); 容量防线与恢复装配预检由
+    wkv/tests/capacity.rs 承接，增长-磁盘读-检查点恢复语义由
+    wkv/tests/checkpoint/recovery.rs、index_checkpoint.rs 与
+    wedb/tests/checkpoint_import.rs 承接

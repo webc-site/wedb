@@ -1,0 +1,18 @@
+{
+  "type": "module",
+  "scripts": {
+    "prepare": "husky",
+    "clippy": "moon run :clippy"
+  },
+  "devDependencies": {
+    "@1-/mdt": "^0.1.11",
+    "@2h2d/tree-sitter-wasms": "^0.2.1",
+    "@3-/cargo_upgrade": "^0.1.4",
+    "husky": "^9.1.7",
+    "web-tree-sitter": "^0.27.0"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1",
+    "zx": "^8.8.5"
+  }
+}

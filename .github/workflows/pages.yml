@@ -1,0 +1,33 @@
+name: Pages rebuild
+
+# 只改站点（website/）不动被测代码时，不必重跑一小时的基准：
+# 这一条按 gh-pages 上已有的历史数据重建并发布站点。
+# 带新数据的发布走 bench.yml 的 website 任务（对比 + 回归都绿才发）。
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "website/**"
+      - ".github/workflows/pages.yml"
+      - ".github/workflows/website.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-rebuild-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  site:
+    name: 重建站点
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/website.yml
+    with:
+      report-artifact: ""
+    secrets: inherit

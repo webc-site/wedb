@@ -1,0 +1,9 @@
+# 会话延迟表为连接任务独占的无锁双缓冲槽（wmetric garnet_latency_metrics_session.rs），
+# rust 不存在跨线程复位面：属主线程在版本翻转点把退役槽按引用并入全局延迟表后
+# 就地清零（GarnetLatencyMetrics::merge 归并即 reset），与 C# 监视器持
+# disposeLock 直写会话 PriorVersion 槽的复位结果等价，且免去对热路径加锁。
+- 文件:
+    - libs/server/Metrics/Latency/GarnetLatencyMetricsSession.cs:
+        - Reset
+        - ResetAll
+  理由: 会话延迟槽属主独占，退役槽在版本翻转点归并即清零，跨线程复位臂无对应物

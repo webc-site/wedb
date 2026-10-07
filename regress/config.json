@@ -1,0 +1,7 @@
+{
+  "max_history": 20,
+  "display_commits": 5,
+  "regression_threshold_pct": 10.0,
+  "data_file": "data/history.json",
+  "markdown_output": "README.md"
+}

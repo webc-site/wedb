@@ -1,0 +1,10 @@
+# C# GarnetApi 公开统一门面：GarnetApiUnifiedCommands.EXPIRETIME(:53) 仅一行
+# 转发 storageSession.Read_UnifiedStore（UnifiedInput/UnifiedOutput 联合读）。
+# rust 无独立 GarnetApi 门面层，命令层唯一实现承接净效果
+- 文件:
+    - libs/server/API/GarnetApiUnifiedCommands.cs:
+        - EXPIRETIME
+  理由: >-
+    无需实现。GarnetApi 公开统一门面 storageSession 转发包装，rust 无独立
+    API 门面层，命令层 network_expiretime（resp/key_admin_commands/keys.rs:291，
+    锚 KeyAdminCommands.cs:NetworkEXPIRETIME）唯一实现已承接

@@ -1,0 +1,85 @@
+// 基准语言：所有词条以这份为准，i18nCheck.js 按它做 parity 检查。
+// 带 {name} 占位符的条目由 tf() 填值，语序可以随语言自由重排。
+export default {
+  "meta.title": "WeDB Bench",
+  "meta.description":
+    "wedb's redb-shaped benchmark: wkv and wbftree against fjall, rocksdb and sqlite across four runner images — tables, bar comparisons and per-commit trends.",
+
+  "nav.section.bars": "Charts",
+  "nav.section.trend": "Trend",
+  "nav.section.table": "Tables",
+  "nav.data": "Raw data",
+  "nav.github": "GitHub",
+  "nav.lang": "Language",
+
+  "hero.title": "wedb, measured the way redb measures itself",
+  "hero.body":
+    "Row order, units and the bolding rules all follow the redb-bench harness: the same 18 workload segments, the same rate units, the same in-row best marked. The columns under test are wedb's own wkv (hash log KV) and wbftree (ordered B+ tree), compared against fjall, rocksdb and sqlite.",
+  "hero.scale_standard": "redb standard scale",
+  "hero.headline": "{bulk} bulk · {sorted} sorted · {key}B keys · {value}B values",
+  "hero.columns_platforms": "{columns} columns · {platforms} platforms",
+  "hero.empty":
+    "No benchmark data yet: this fills in as soon as a main-branch Benchmark run finishes.",
+
+  "section.bars.title": "Head-to-head per platform",
+  "section.bars.desc":
+    "Pick a workload segment to compare the engines on one platform. Bar length is that segment's value; ★ marks the fastest.",
+  "section.trend.title": "Trend across commits",
+  "section.trend.desc":
+    "The same platform over time, one point per main-branch run — for watching regressions rather than a single snapshot. Hover a point for the engine, version and delta.",
+  "section.table.title": "Latest tables",
+  "section.table.desc":
+    "The full table for the latest run of the selected platform: same row order, units and bolding rules as the table redb publishes, so the two can be read side by side.",
+
+  "pane.bars": "Single segment",
+  "pane.trend": "Across commits",
+  "bars.higher_better": "Higher is better",
+  "bars.empty": "No platform data to compare yet.",
+  "bars.aria": "Horizontal bar comparison of the engines on the selected workload segment",
+  "bars.best_hint": "★ fastest in the segment",
+
+  "trend.aria": "Per-commit trend of the engines on the selected workload segment",
+  "trend.empty": "No trend data yet: every finished main-branch run adds a point.",
+  "trend.dots":
+    "{n} points · the axis labels each run with its version · a gap means that column produced no value in that run (crashed, timed out or not part of the matrix), the line breaks there and is never interpolated.",
+  "trend.tip_delta": "vs previous run",
+  "trend.tip_na": "no data",
+
+  "table.empty": "This platform has no data for the selected run.",
+  "table.utc": "UTC",
+  "table.workload":
+    "{bulk} bulk · {sorted} sorted · {reads} random reads · {scans}×{scan_len} range reads · {key}B keys · {value}B values · {cache} cache",
+  "table.median_note":
+    "Read segments are the median of {n} runs; each column runs in its own subprocess, so a crash or timeout folds that whole column to N/A.",
+  "status.crashed": "crashed",
+  "status.timeout": "timed out",
+  "commit.local": "local",
+
+  "foot.line1":
+    "The tables are produced by the bench factory side (Rust): the 18 workload segments, the unit labels and the in-row best bolding all live in crates/wedb-bench. The site only consumes the machine-readable JSON and never re-implements that formatting.",
+  "foot.line2":
+    "Pipeline: the Benchmark workflow runs one column per engine on four runner images, benchreport merge folds them into per-platform tables and appends the history, and the Website workflow publishes the site together with that history to gh-pages.",
+  "foot.line3": "Data updates after every main-branch benchmark run.",
+  "foot.links": "Links",
+  "foot.workflow_bench": "Benchmark workflow",
+  "foot.workflow_website": "Website workflow",
+
+  "bench.row.bulk_load": "bulk load",
+  "bench.row.individual_writes": "individual writes",
+  "bench.row.small_batch_writes": "small batch writes",
+  "bench.row.sorted_inserts": "sorted inserts",
+  "bench.row.nosync_writes": "nosync writes",
+  "bench.row.len": "len()",
+  "bench.row.random_reads": "random reads",
+  "bench.row.random_range_reads": "random range reads",
+  "bench.row.random_reads_4_threads": "random reads (4 threads)",
+  "bench.row.random_reads_8_threads": "random reads (8 threads)",
+  "bench.row.random_reads_16_threads": "random reads (16 threads)",
+  "bench.row.random_reads_32_threads": "random reads (32 threads)",
+  "bench.row.removals": "removals",
+  "bench.row.retain": "retain",
+  "bench.row.extract_if": "extract_if",
+  "bench.row.pop": "pop",
+  "bench.row.uncompacted_size": "uncompacted size",
+  "bench.row.compacted_size": "compacted size",
+};

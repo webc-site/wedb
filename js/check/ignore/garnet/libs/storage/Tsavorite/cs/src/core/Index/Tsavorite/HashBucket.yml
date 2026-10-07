@@ -1,0 +1,10 @@
+# HashBucket.TryPromoteLatch（:119 S 闩就地升 X 闩，供 TsavoriteKV 升级锁链）：
+# rust 无 S→X 升级闩形态——共享/独占两门分离（windex bucket.rs），需独占时
+# 直取排他闩（try_lock_exclusive 公平门 / 绕开双臂），无就地升级位。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs:
+        - TryPromoteLatch
+  理由: >-
+    无 S→X 升级闩：rust 锁面只设共享/独占两门，升级需求由直取排他闩
+    承接，无就地升级位（OverflowBucketLockTable 三锁口已在 windex/
+    src/bucket.rs 并列锚定）。

@@ -1,0 +1,8 @@
+# LightEpoch.ToString（:681 调试转储字符串）：调试器显示形，零生产消费；
+# rust wepoch 调试经日志宏内联格式化承接。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.cs:
+        - ToString
+  理由: >-
+    调试转储零消费：纯调试器显示面，rust 侧调试信息由日志/断言消息内联
+    格式化，无逐符号移植面。

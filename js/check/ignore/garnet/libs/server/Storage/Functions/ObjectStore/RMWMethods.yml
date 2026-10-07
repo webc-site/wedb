@@ -1,0 +1,17 @@
+# 降级词法兜底误提：ObjectStore/RMWMethods.cs 是 tree-sitter AST 断裂文件
+# （11 个 ERROR 节点，11 个名录全由 CS_DECL_RX 词法兜底补回），以下两条是
+# 调用点被误提为声明：
+# - Dispose：方法体内 3 处 `writer.Dispose()`（RespMemoryWriter 局部清理调用），
+#   C# 本文件无 Dispose 方法定义；
+# - NeedToCreate：:26 `return GarnetObject.NeedToCreate(input.header)` 调用，
+#   真定义在 GarnetObject（键缺席时按命令初值矩阵判定是否建对象）。rust 判定
+#   由对象 RMW 骨架承接（rmw_helpers.rs run_sync_rmw/run_async_rmw 的
+#   ObjLoad::Missing → default_obj + should_write 处理器，各对象命令 mod 头注
+#   的「缺失键操作后仍为空则保持缺失」矩阵），无独立同名谓词。
+- 文件:
+    - libs/server/Storage/Functions/ObjectStore/RMWMethods.cs:
+        - Dispose
+        - NeedToCreate
+  理由: 词法兜底把 writer.Dispose() 与 GarnetObject.NeedToCreate 调用误提为
+    本文件声明，C# 文件内无此二方法定义；NeedToCreate 判定矩阵语义由对象
+    RMW 骨架的 Missing/should_write 臂承接（锚点已挂 run_sync_rmw）

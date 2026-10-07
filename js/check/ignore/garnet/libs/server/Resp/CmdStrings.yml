@@ -1,0 +1,9 @@
+- 文件:
+    - libs/server/Resp/CmdStrings.cs:
+        - RESP_ERR_UBLOCKING_CLINET
+  理由: >-
+    死文案常量不移植：C# 唯一消费点在 ClientCommands.cs CLIENT UNBLOCK 的
+    非 GarnetServerBase else 臂（集群形态分支），rust 单一服务器形态该臂不可达，
+    CLIENT UNBLOCK 实装经 try_force_unblock 观察者回执另一文案
+    （RESP_UNBLOCKED_CLIENT_VIA_CLIENT_UNBLOCK / UNBLOCKED 报错链），
+    该常量全链路零消费，已删 rust 对应常量（task/done/design-dead-code-cleanup.md 清单条目1）。

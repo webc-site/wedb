@@ -1,0 +1,6 @@
+- 文件:
+    - libs/common/Crc64.cs:
+        - Reflect64
+  理由: C# Crc64.cs:22 的 Reflect64 为 64 位逐位反射辅助函数，仅在 Crc64Bitwise（:38 逐位慢速参考）中被调用；
+    rust 侧 wedb/wbase/src/crc64.rs 采用编译期构造的 256 项查找表折叠 8 轮迭代，
+    配合 u8::reverse_bits / crc.reverse_bits 单指令位反转，不转写逐位慢速实现及其专有辅助函数 Reflect64。

@@ -1,0 +1,8 @@
+- 理由: >-
+    C# Enumerate() => this 透传臂：升序枚举由 roaring crate
+    iter()/range()
+    直供（wext_roaring/src/roaring_bitmap_object.rs），无对位必要；Remove/GetBit/Serialize/Deserialize
+    四口已补正式锚（RoaringBitmapObject 双锚），无需 ignore
+  文件:
+    - modules/RoaringBitmap/RoaringBitmap.cs:
+        - Enumerate

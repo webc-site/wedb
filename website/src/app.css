@@ -1,0 +1,494 @@
+/* WeDB Bench — 沿用 ulua 站点的纯技术极简风（配色与组件口径对齐 luaur/website/src/app.styl） */
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 400;
+  line-height: 1.75;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  background: #ffffff;
+  color: #111111;
+}
+
+body {
+  margin: 0;
+  line-height: inherit;
+  background: #ffffff;
+  color: #111111;
+  min-height: 100vh;
+}
+
+code,
+kbd,
+samp,
+pre,
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.92em;
+}
+
+a {
+  color: #0969da;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+::selection {
+  background: #bae6fd;
+  color: #0c4a6e;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    padding: 0 16px;
+  }
+}
+
+button,
+select {
+  font-family: inherit;
+  font-size: 100%;
+}
+
+/* ═══ 复用组件 ═══ */
+
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #d0d7de;
+  background: #ffffff;
+  color: #1f2328;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-pill:hover {
+  background: #f6f8fa;
+  border-color: #afb8c1;
+}
+
+.btn-pill:active {
+  background: #eaeef2;
+}
+
+.btn-pill.active {
+  background: #0969da;
+  border-color: #0969da;
+  color: #ffffff;
+}
+
+.box-card {
+  background: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.04);
+  overflow: hidden;
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: #f6f8fa;
+  border-bottom: 1px solid #d0d7de;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #57606a;
+}
+
+.pane-head .label {
+  font-weight: 600;
+}
+
+.section {
+  margin: 0 0 44px;
+}
+
+.section-head {
+  max-width: 780px;
+  margin: 0 0 24px;
+}
+
+.section-head h2 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1f2328;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.section-head p {
+  font-size: 14px;
+  color: #656d76;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.muted {
+  color: #656d76;
+  font-size: 13px;
+}
+
+/* 站点级导航：左侧品牌 + 章节锚点，右侧语言与外链，一行 flex */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid #eeeeee;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(6px);
+}
+
+.nav-inner {
+  display: flex;
+  /* .wrap 把 flex 定成了列，这里显式改回行：品牌居左、操作区居右 */
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 60px;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #1f2328;
+  white-space: nowrap;
+}
+
+.nav-brand:hover {
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+}
+
+.nav-links a {
+  color: #57606a;
+  white-space: nowrap;
+}
+
+.nav-links a:hover {
+  color: #0969da;
+  text-decoration: none;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 语言下拉：切换只换词典，不重载页面 */
+.lang {
+  position: relative;
+}
+
+.lang > .btn-pill svg {
+  color: #57606a;
+}
+
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  min-width: 148px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(31, 35, 40, 0.12);
+}
+
+.lang-item {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  color: #1f2328;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lang-item:hover {
+  background: #f6f8fa;
+}
+
+.lang-item.active {
+  color: #0969da;
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .nav-links .hide-sm,
+  .nav-actions .hide-sm {
+    display: none;
+  }
+}
+
+.hero {
+  padding: 44px 0 32px;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+  color: #1f2328;
+}
+
+.hero p {
+  font-size: 15px;
+  color: #656d76;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* 数据表 */
+.table-scroll {
+  overflow-x: auto;
+}
+
+table.bench {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.bench th,
+table.bench td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #eeeeee;
+  text-align: right;
+  white-space: nowrap;
+}
+
+table.bench th:first-child,
+table.bench td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: #ffffff;
+}
+
+table.bench thead th {
+  background: #f6f8fa;
+  color: #57606a;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border-bottom: 1px solid #d0d7de;
+}
+
+table.bench thead th:first-child {
+  background: #f6f8fa;
+}
+
+table.bench tbody tr:hover td {
+  background: #fbfcfd;
+}
+
+table.bench tbody tr:hover td:first-child {
+  background: #fbfcfd;
+}
+
+table.bench td.best {
+  font-weight: 700;
+  color: #1f2328;
+}
+
+table.bench td.na {
+  color: #afb8c1;
+}
+
+.row-name {
+  color: #1f2328;
+}
+
+.row-unit {
+  color: #656d76;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  border: 1px solid #d0d7de;
+  color: #57606a;
+  background: #f6f8fa;
+}
+
+.badge.warn {
+  color: #bc4c00;
+  border-color: #f8c792;
+  background: #fff8f2;
+}
+
+.note-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #656d76;
+}
+
+.foot {
+  border-top: 1px solid #eeeeee;
+  padding: 22px 0 40px;
+  font-size: 12px;
+  color: #656d76;
+}
+
+/* SVG 图表：几何口径沿用 luaur 站点（840 宽、标签列 220、条宽上限 430） */
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 12px 0 4px;
+}
+
+.row-label {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #1f2328;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.row-note {
+  font-size: 10.5px;
+  fill: #656d76;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.bar-track {
+  fill: #f6f8fa;
+  stroke: #eeeeee;
+  stroke-width: 1;
+}
+
+.bar-rect {
+  opacity: 0.9;
+}
+
+.val-text {
+  font-size: 12.5px;
+  dominant-baseline: central;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* 段选择器与 G2 图表容器（柱状图、趋势图共用） */
+.metric-pick {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1f2328;
+  font-size: 13px;
+}
+
+.chart-host {
+  min-height: 340px;
+  padding: 8px 12px 0;
+}
+
+.legend {
+  margin-left: 12px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #57606a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.legend-item i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.plot-note {
+  padding: 0 16px 14px;
+  margin: 0;
+}
+
+/* 页脚链接行 */
+.foot-links {
+  margin: 4px 0 10px;
+}
+
+.foot-links .label {
+  font-size: 12px;
+  color: #57606a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.foot-sign {
+  margin: 0;
+}

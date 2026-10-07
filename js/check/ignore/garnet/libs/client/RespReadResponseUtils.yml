@@ -1,0 +1,9 @@
+- 文件:
+    - libs/client/RespReadResponseUtils.cs:
+        - TryReadIntWithLengthHeader
+        - TryReadIntegerAsString
+        - TryReadSimpleString
+  理由: C# RespReadResponseUtils.cs:18/44/253 的 TryReadSimpleString / TryReadIntegerAsString /
+    TryReadIntWithLengthHeader 均为转调 RespReadUtils 对应方法的客户端轻薄封装；
+    rust 侧同族基础响应读取已在 wedb/wconn/src/parser.rs（RespReadResponseUtils）正规对齐承接，
+    这三个转发辅助臂无需单独在客户端解析器重复转写。

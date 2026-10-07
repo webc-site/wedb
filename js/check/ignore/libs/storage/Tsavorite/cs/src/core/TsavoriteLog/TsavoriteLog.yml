@@ -1,0 +1,14 @@
+# AOF truncate 单口径收敛（task/ing/aof-truncate-single-source.md 方案 B）：
+# C# TsavoriteLog.UnsafeGetReadOnlyAddressAbove 取「高于入参的只读安全地址」，
+# 唯一消费方是 fast_aof_truncate 尾平移回调（GarnetLog.SetLogShiftTailCallback /
+# AofSyncDriverStore.SafeTailPageShiftCallback）——写入跨页时据此界定可安全挪出的
+# 旧尾下界。该回调链在 rust 已整条删除，物理截断恒经 WalLog::truncate 持提交锁与
+# min(committed_until) 钳制串行化，环形缓冲可读面即 safe_tail 单一水位，无需独立的
+# 只读边界查询原语；且此名此前仅由已删除的 GarnetLog::unsafe_get_read_only_address_above
+# 门面文档串全局遮蔽，门面随链移除后本原语一并落为无实现
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:
+        - UnsafeGetReadOnlyAddressAbove
+  理由: 方案 B 删除 fast_aof_truncate 尾平移回调链，其只读边界查询原语失去唯一消费
+    方；rust 设备可读面由 WalLog::truncate 提交锁 + min(committed) 钳制与 safe_tail
+    单水位承担，无独立只读边界查询
