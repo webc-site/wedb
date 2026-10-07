@@ -1,0 +1,1 @@
+var e=[`English`,`简体中文`,`正體中文`,`日本語`,`Deutsch`,`Français`,`Русский`,`Español`,`Português`,`한국어`];export{e as t};
