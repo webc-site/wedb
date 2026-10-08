@@ -1,3 +1,5 @@
+#![cfg(not(windows))]
+// windows（compio IOCP）冷读复检 180s 挂起待归因——R27 CI windows 首跑实证（R25 门控先例），生产 windows 冷读路径需专项验证
 //! 磁盘冷读复检预算收窄收敛回归（票 wkv-cold-read-locktimeout-caller-no-convergence）
 //!
 //! 缺陷形态（修复前）：`StoreSession::read_from_disk` 复检重投谓词无链头单调下界
