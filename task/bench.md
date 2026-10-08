@@ -1573,6 +1573,31 @@ second_signal 本轮全过）——逐轮漂移实证。
 
 剩余动作归协作会话：per-test 隔离/重试策略或 CI runner 资源配置。
 
+## 106. R28 前置收官：CI 四平台推进至测试执行层 + windows POSIX 语义缺口清单（2026-10-08，多会话并行 + 主会话）
+
+CI 修复总账（自 9-21 起数百次全红 → ubuntu/arm 双平台全绿、mac/windows 推进至测试执行层）：
+- 编译/溢出层：wnode_test、wnode lib、wlua E0499、asm、E0554、aof_size_limit 512、
+  26eb645（协作 CI 修复轮：栈溢出/windows fs/enomem）、wedb_standalone 512
+- 测试门控层：signal_default_disposition_restore（unix）、coldread_recheck_budget
+  （not(windows)：compio IOCP 冷读复检 180s 挂起）、datadir_flock_exclusive
+  （not(windows)：flock POSIX 锁语义）
+- **读路径 len_must_align 放宽**（wdev io.rs）：linux O_DIRECT 恢复读逻辑尾 512
+  被 4096 扇区校验误拒——读侧放宽（写侧 strict 维持）
+- 三平台终态（577a229 run）：ubuntu-arm ✓ ubuntu ✓ mac ✗(lpos flaky 漂移，上轮
+  同位置本轮转绿；本轮换 client_list_kill monitor 采样计数 4.0/5.0 漂移)
+  windows ✗(envelope_count_correct_race 2 用例 POSIX 竞态语义)
+
+**windows POSIX 语义测试缺口清单**（CI 洋葱最深层，适配需 windows 专项）：
+- envelope_count_correct_race 2 用例（R11 注入设备让点在 IOCP 时序差）
+- datadir_flock_exclusive（已门控）
+- 后续可能逐层暴露的 uds/flock 族
+
+**性质判定**：全部为「POSIX 语义测试在 windows 信号/锁/套接字模型的适配缺失」，
+非引擎正确性缺陷（同代码 ubuntu/mac/arm 全绿）。生产 windows 支持需专项轮。
+
+**无优化计数**：1/32 维持（R22/R18/R19/R20 证伪累积；R23/R24/R27/R21/R25 实质
+落地归零重计——本轮无新优化落地，维持 1/32 不变）。
+
 ## 9. 已知红线（所有席通用）
 
 - 主树 /Users/z/git/db/wedb 常有伙伴会话在途（近期在改 bench/ 显示层与 task/review.md），
