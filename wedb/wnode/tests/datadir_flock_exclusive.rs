@@ -1,3 +1,5 @@
+#![cfg(not(windows))]
+// 数据目录 flock 进程独占依赖 POSIX 锁语义；windows 文件锁模型不同（R27 CI windows 首跑 0.01s 实证失败），windows datadir 锁适配待专项
 #![recursion_limit = "512"] // 泛型设备实例化下 async 状态机嵌套深（R27 CI 实证）
 //! 数据目录排他锁（flock）进程级互斥端到端
 //!
