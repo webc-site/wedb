@@ -1,0 +1,8 @@
+# lua_checkstack FFI 绑定（零消费 pub 面普查批五）
+- 文件:
+    - libs/server/Lua/NativeMethods.cs:
+        - lua_checkstack
+  理由: >-
+    rust 侧压栈不手写容量预检（Luau VM 自扩栈，栈满即报 error），该 extern 绑定
+    在本仓零读者；绑定本身即死码，按"无消费即删、不留 never-used"纪律删除，
+    其余 Lua C API 绑定照常保留。

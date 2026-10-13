@@ -1,0 +1,21 @@
+- 理由: C# UnregisterIndex（RangeIndexManager.cs:471）garnet 全仓亦零调用；
+    rust dispose_tree_under_lock(key, false) 包装 unregister_index 全仓零调用删除，
+    delete_index（delete_file=true 分支）为 wkv 活跃入口保留
+  文件:
+    - libs/server/Resp/RangeIndex/RangeIndexManager.cs:
+        - UnregisterIndex
+- 理由: 文件级复制枚举不实现。C# EnumerateFilesForReplication 的唯一消费方是主端
+    RangeIndexSnapshotReader（libs/cluster/Server/Replication/PrimaryOps/DiskbasedReplication/
+    RangeIndexSnapshotReader.cs:43，由 ReplicaSyncSession.cs:146 AddReader 进
+    SnapshotTransmissionDriver），该消费面在 rust 已按更细粒度接线：主端
+    wedb/wedb/src/server/replication/snapshot_transmission.rs:send_store_checkpoint 直调
+    wbftree enumerate_checkpoint_snapshots 逐文件三段下发，副本
+    receive_checkpoint_handler.rs 以 checkpoint_snapshot_path_in 派生落盘路径，
+    全链集成测试见 wedb/wedb/tests/checkpoint_import.rs:checkpoint_stream_import_restores_range_index_trees。
+    其第 1 段（riLogRoot 内按 [hlogStartAddress, hlogEndAddress) 地址窗筛 flush 文件、
+    以 STORE_RANGEINDEX_FLUSH 传输）在 rust 无恢复面消费者：副本 AOF 自检查点覆盖位点
+    全量重放 ri_set，检查点后新建树由 ri_create 重放重建，flush 快照只由 on_truncate
+    按日志地址回收，偏离登记见 snapshot_transmission.rs 头注释
+  文件:
+    - libs/server/Resp/RangeIndex/RangeIndexManager.cs:
+        - EnumerateFilesForReplication

@@ -1,0 +1,12 @@
+# C# AofSyncTask.cs:353 LogRunAofSyncTask 为 [Conditional("DEBUG")] 测试
+# 日志埋点：组包 GarnetTestLoggingEvent（LogRunAofSyncTask 事件型）经
+# logger.LogTesting 下发，服务 Garnet.test 系测试基建的时序断言。rust 侧
+# 全仓无 GarnetTestLogging 测试日志事件系统（grep 零命中），推流时序断言
+# 由 wnode_test/wedb_test 集成测试的位点断言承接，无该埋点形态
+- 文件:
+    - libs/cluster/Server/Replication/PrimaryOps/AofOperations/AofSyncTask.cs:
+        - LogRunAofSyncTask
+  理由: >-
+    Conditional(DEBUG) 测试日志埋点（GarnetTestLoggingEvent 测试基建）；
+    rust 无该测试日志事件系统，推流时序断言由集成测试位点断言承接，
+    无对位实现

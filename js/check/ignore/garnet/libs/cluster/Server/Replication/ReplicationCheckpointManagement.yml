@@ -1,0 +1,9 @@
+# ReplicationCheckpointManagement.SetPrimaryReplicationId（:88 预写
+# CurrentHistoryId = PrimaryReplId，初始化 / failover 两调用点）：rust 检查点
+# 链无预置 HistoryId 面，签名用历史 Id 在登记点现场取用，无独立预写口。
+- 文件:
+    - libs/cluster/Server/Replication/ReplicationCheckpointManagement.cs:
+        - SetPrimaryReplicationId
+  理由: >-
+    无预置 HistoryId 面：C# 预写 CurrentHistoryId 的独立口在 rust 检查点
+    链无对应生命周期，登记点现取主复制 Id 签名。

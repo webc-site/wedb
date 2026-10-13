@@ -1,0 +1,6 @@
+# Rust 已将直方图向量扁平化至 GarnetLatencyMetrics，无需 C# 的单字段包装体
+# LatencyMetricsEntry。常量（HISTOGRAM_LOWER_BOUND / HISTOGRAM_UPPER_BOUND）
+# 已内聚至 garnet_latency_metrics.rs。
+- 文件:
+    - libs/server/Metrics/Latency/LatencyMetricsEntry.cs
+  理由: Rust 扁平化直方图向量，C# 单字段包装结构体在 Rust 侧无对应物

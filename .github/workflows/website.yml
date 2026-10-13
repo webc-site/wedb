@@ -1,0 +1,158 @@
+name: Website (reusable)
+
+# 站点构建与发布：svelte + vite 的 website/ 目录构建产物覆盖式推送到 gh-pages 孤儿分支
+# （分支里只有站点，绝不含主仓代码），再走官方 Pages 部署。
+#
+# 历史数据不落在主仓工作树里：website/data/history.json 是生成物（被 website/.gitignore 挡掉），
+# 每次发布把它随 dist 一起写进 gh-pages，下一轮再从 gh-pages 取回叠加，趋势图因此能跨提交累积。
+
+on:
+  workflow_call:
+    inputs:
+      report-artifact:
+        description: 要并入历史的报表 artifact 名（如 wedb-bench-report）；留空则只按既有历史重建
+        required: false
+        type: string
+        default: ""
+      keep:
+        description: 历史保留的提交个数上限
+        required: false
+        type: string
+        default: "30"
+  # 手动发布通道：正常路径是 bench.yml 在「对比 + 回归」双绿后调起本工作流，
+  # 但站点上线不该被别的域的红灯卡死（回归门禁在共享 runner 上有负载假红的前科），
+  # 所以这里留一个同参数的 dispatch 入口，参数必须和 workflow_call 那段保持一致
+  workflow_dispatch:
+    inputs:
+      report-artifact:
+        description: 要并入历史的报表 artifact 名（如 wedb-bench-report）；留空则只按既有历史重建
+        required: false
+        type: string
+        default: ""
+      keep:
+        description: 历史保留的提交个数上限
+        required: false
+        type: string
+        default: "30"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  site:
+    name: 构建并发布 GitHub Pages
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      # 与 bench.yml 的发布任务共用一把锁：gh-pages 是覆盖式推送，不能并发
+      group: pages-deploy
+      cancel-in-progress: false
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
+      CARGO_TARGET_DIR: ${{ github.workspace }}/bench/target
+      RUSTFLAGS: -C target-feature=+aes
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bench
+          cache-on-failure: true
+          # 站点这条只编 benchreport（release），跑在 arm64 runner 上，
+          # 与 bench.yml 汇总 job（x64）的 bench-report 族本来就命中不了彼此，各留一族；
+          # key 是 rust-cache 加在自动 job 级键上的额外标识，过期缓存由 cache-gc.yml 收
+          key: website
+
+      - name: Build benchreport
+        run: cargo build -p wedb-bench --no-default-features --release --bin benchreport
+        working-directory: bench
+
+      - name: Download combined report
+        if: inputs.report-artifact != ''
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.report-artifact }}
+          path: report
+
+      - name: Take previous history from gh-pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p website/data
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch --depth=1 origin gh-pages
+            if git cat-file -e FETCH_HEAD:data/history.json 2>/dev/null; then
+              git show FETCH_HEAD:data/history.json > website/data/history.json
+              echo "取回既有历史：$(wc -c < website/data/history.json) 字节"
+            else
+              echo "gh-pages 上还没有 data/history.json，本轮从零开始"
+            fi
+          else
+            echo "还没有 gh-pages 分支，本轮从零开始"
+          fi
+
+      - name: Accumulate history
+        if: inputs.report-artifact != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          bench/target/release/benchreport history \
+            --out website/data/history.json \
+            --keep "${{ inputs.keep }}" \
+            website/data/history.json \
+            report/report.json
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install website dependencies
+        run: bun install --cwd website --frozen-lockfile
+
+      # 词条完整性门禁：缺键 / 多余键 / 占位符漂移都会让某个语言的界面漏出英文原文，
+      # 站点构建对此毫无察觉（动态 import 只在运行时才报错），所以卡在构建之前。
+      # 加一门语言只需补一个 src/lib/locales/<code>.js，清单由脚本自己枚举，不用改这里。
+      - name: Check i18n catalogs
+        run: bun run --cwd website check:i18n
+
+      - name: Build website
+        run: bun run --cwd website build
+
+      - name: Deploy dist to gh-pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd website/dist
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b gh-pages
+          git add -A
+          git commit -q -m "chore(pages): 发布评测站点与机读报表 [skip ci]"
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+          rm -rf .git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: website/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

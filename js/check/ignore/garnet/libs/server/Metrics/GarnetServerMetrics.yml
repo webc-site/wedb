@@ -1,0 +1,9 @@
+# GarnetServerMetrics.Dispose（:67 仅 globalLatencyMetrics?.Return() 池化归还）：
+# rust 指标面为 Arc 共享统计聚合（wresp/src/metrics），无对象池与归还语义，
+# Drop 即释放，无显式 Dispose 口。
+- 文件:
+    - libs/server/Metrics/GarnetServerMetrics.cs:
+        - Dispose
+  理由: >-
+    Arc 共享无池化归还：C# Dispose 唯一动作是 LatencyMetricsEntry 池归还，
+    rust 指标统计直读聚合、无池形态，随 Drop 释放。

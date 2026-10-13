@@ -1,0 +1,13 @@
+# JsonAssert.cs 测试扩展断言助手三小件（JsonAssert.AreEqual 重载族、
+# JsonTestExtensions.DeepEquals 扩展、JsonElementEqualityComparer.Equals/
+# GetHashCode）：GarnetJSON 测试专用比较器，rust 测试直接以 serde_json 值
+# 比较与断言宏承接，不逐符号移植。
+- 文件:
+    - test/standalone/Garnet.test.extensions/GarnetJSON/JSONPath/JsonAssert.cs:
+        - AreEqual
+        - DeepEquals
+        - Equals
+        - GetHashCode
+  理由: >-
+    测试扩展断言助手：仅 GarnetJSON C# 测试消费的比较器/断言壳，rust
+    测试以 serde_json 比较与标准断言宏同义承接，不移植。

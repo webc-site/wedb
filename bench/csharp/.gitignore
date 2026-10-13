@@ -1,0 +1,4 @@
+# dotnet 构建产物：绝不入库（bin 下是十几 MB 的 dll 与本机 pdb）
+bin/
+obj/
+*.user

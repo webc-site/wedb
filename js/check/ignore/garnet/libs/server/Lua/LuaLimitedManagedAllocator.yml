@@ -1,0 +1,12 @@
+# 托管分配器白盒口清理（零消费 pub 面普查批五）
+- 文件:
+    - libs/server/Lua/LuaLimitedManagedAllocator.cs:
+        - GetFreeList
+        - IsInfallibleAllocation
+        - DebugCheck
+  理由: >-
+    三处均为零生产消费的白盒口：空闲链在本仓以 free_list 字段单点直读（分配、
+    合并、check_correctness 校验同文件内取用），不另开取数访问器；应急块归还需
+    连带 layout，故生产侧取 infallible_allocations 条目而非只回答真假的 bool 谓词；
+    C# DebugCheck 本身是 [Conditional("DEBUG")] 转调 CheckCorrectness 的同义别名，
+    本仓只保留 check_correctness 一个出口。

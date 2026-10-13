@@ -1,0 +1,19 @@
+# C# ProcessOutput（SpanByteAndMemory 双形态出口分流器：非 SpanByte 分支 SendAndReset，
+# SpanByte 分支 dcurr += output.Length）
+# 它存在的唯一前提是 C# 会话输出同时存在「指针缓冲 dcurr/dend」与「堆/池 Memory」两形态。
+# rust 会话输出统一 self.output: Vec<u8>，写出统一走 RespWriter 泛型单态化
+#（同 rust 文件 writer2 / writer3），发送由网络泵整块 flush 承接，
+# 不存在第二形态出口需要分流——无对应物，非缺实现。
+- 文件:
+    - libs/server/Resp/RespServerSessionOutput.cs:
+        - ProcessOutput
+  理由: C# 双形态出口分流器，rust 输出统一 Vec<u8> 由网络泵 flush，无对应物
+# WriteDirectLargeRespString（TryWriteBulkStringLength + WriteDirectLarge + NewLine
+# 三段式大串写出）：C# 八处消费点（BasicCommands、ArrayCommands、PubSubCommands、
+# RespServerSessionOutput 内部）在 rust 已全部改道 write_bulk_string 承接，
+# 语义等价（$<len>\r\n<bytes>\r\n），零调用死链已删
+#（task/done/design-dead-code-cleanup.md 清单条目2）。
+- 文件:
+    - libs/server/Resp/RespServerSessionOutput.cs:
+        - WriteDirectLargeRespString
+  理由: 语义由 write_bulk_string 承接，C# 消费点 rust 已改道，零调用死链删除

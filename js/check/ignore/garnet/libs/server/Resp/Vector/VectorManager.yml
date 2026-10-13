@@ -1,0 +1,21 @@
+# 恢复趟假 Tsavorite 头解包层清理（resp/vector 域缺失符号甄别）
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.cs:
+        - SanitizeAndTrackIngestedRecordIfApplicable
+  理由: >-
+    C# 该函数消费 ISourceLogRecord 记录头（Tombstone / Namespace / RecordType）
+    判别主存记录并路由（GarnetRecordTriggers.cs:OnRecoverySnapshotRead 恢复趟
+    逐记录回调）。rust 登记表旁路记录无 Tsavorite 记录头，判别由强类型子标签
+    VectorRegistrySubTag 单点承接（vector_registry_recovery.rs:decode_registry_physical），
+    恢复回建入口 rebuild_registry_from_store 按解出的 RegistryRecord 直调对应
+    恢复方法（recovered_vector_set_index_key / recovered_context_metadata，均
+    保持 C# 映射注释），墓碑与链首短路在扫描段完成；包装层为迁移残留脚手架，
+    已随本票删除，无独立承接函数。
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.cs:
+        - MetadataNamespace
+  理由: >-
+    C# 用 Tsavorite 存储级命名空间号 1 标识上下文元数据记录；rust 元数据记录
+    以 KeyTag::VectorRegistry 旁路键 + VectorRegistrySubTag::Metadata 子标签
+    判别（编码单点 vector_registry_recovery.rs），存储级元数据命名空间机制位
+    不存在，常量随假入参层一并删除。

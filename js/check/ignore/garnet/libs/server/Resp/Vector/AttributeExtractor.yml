@@ -1,0 +1,11 @@
+# C# 属性预抽取二进制格式族（ConvertJsonToBinary 建缓存 + ExtractFieldsBinary
+# 消费缓存）：对照 garnet libs/server/Resp/Vector/AttributeExtractor.cs——
+# 该族在 C# 全仓（含测试）零生产消费，属未接线的预备形态。rust 向量过滤面
+# 走 JSON 直读单点（wvector filter/attribute_extractor.rs:extract_fields 经
+# 编译期 filter 程序求值），无二进制缓存第二形态，按「杜绝写死函数/虚设实现」
+# 与「一处定义」纪律不转写死方法。
+- 文件:
+    - libs/server/Resp/Vector/AttributeExtractor.cs:
+        - ConvertJsonToBinary
+        - ExtractFieldsBinary
+  理由: C# 侧零消费预备形态不转写；rust 属性抽取以 JSON 直读 extract_fields 单点承接

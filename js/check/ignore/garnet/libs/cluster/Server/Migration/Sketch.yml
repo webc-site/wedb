@@ -1,0 +1,24 @@
+# C# TryHashAndStore（argSliceVector.TryAddItem 去重 + 收集）服务于 SLOTS 游标重扫
+# 与 RangeIndex 键收集（MigrateScanFunctions.cs:42/:64、MigrateSession.RangeIndex.cs:108），
+# argSliceVector 承载 SLOTS 链传输清单（MigrateOperation.cs:112/:205/:241 消费）
+- 文件:
+    - libs/cluster/Server/Migration/Sketch.cs:
+        - TryHashAndStore
+  理由: rust 生产链传输清单由调用方结构承担（SLOTS 扫描 work 列表、range_index_keys
+    集合、KEYS 命令 keys 参数），sketch 收窄为 can_access_key 门控 bloom bitmap，
+    重复键置位幂等无去重需求；rust try_hash_and_store/try_hash_and_store_ns 全仓
+    零调用且恒返回 true，随死代码清理移除
+
+# C# Sketch.Keys（:19 属性）由 HashAndStore :75 收录、Clear :98 复位，消费点在
+# MigrateOperation.cs:149/:256 与 MigrateSessionKeys.cs:38/:161（清单遍历 + RI 标记回写）
+- 文件:
+    - libs/cluster/Server/Migration/Sketch.cs:
+        - Keys
+  理由: >-
+    无需实现。C# 的 Keys 是 KEYS 路径传输与删除清单载体，rust 侧同一清单已由调用方
+    结构承担（SLOTS 扫描 work 列表与 transferred 确认集见 migrate_driver/slots.rs、
+    KEYS 命令键参数与其 transferred 确认集见 migrate_driver/keys.rs、
+    range_index_keys 集合见 migrate_session_range_index.rs），sketch 只作
+    can_access_key 门控 bloom bitmap。rust 原 keys 字段每次 hash_and_store 都
+    to_vec 入 Vec 而全仓生产零读取（仅 tests 断言消费），属只写不读的持续堆增长，
+    随带 seed 公开面收口一并删除，不保留空壳

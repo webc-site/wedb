@@ -1,0 +1,36 @@
+{
+  "commit": "9e275301",
+  "message": "Merge commit 'bc0f93f' into dev",
+  "date": "2026-09-12 12:34:48",
+  "author": "x-at-01",
+  "metrics": {
+    "wbftree_delete": {
+      "ops": 726151.3700000176,
+      "latency_us": 1.37712334
+    },
+    "wbftree_insert": {
+      "ops": 618689.6475499084,
+      "latency_us": 1.6163192708333334
+    },
+    "wbftree_read": {
+      "ops": 428044.0929247428,
+      "latency_us": 2.3362079199999997
+    },
+    "wbftree_scan_10": {
+      "ops": 259025.98046125588,
+      "latency_us": 3.8606165999999997
+    },
+    "wkv_delete": {
+      "ops": 1869482.106719386,
+      "latency_us": 0.5349075
+    },
+    "wkv_get_hot": {
+      "ops": 1809879.669788178,
+      "latency_us": 0.55252292
+    },
+    "wkv_upsert": {
+      "ops": 3600358.054888487,
+      "latency_us": 0.2777501528333334
+    }
+  }
+}

@@ -1,0 +1,37 @@
+[package]
+name = "wvector"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wvector"
+description = "Vector indexing, quantization, and similarity search for wedb"
+keywords = ["vector", "similarity-search", "quantization", "index"]
+
+[lints]
+workspace = true
+
+[dependencies]
+async-lock.workspace = true
+bytemuck = { version = "1.25.2", features = ["must_cast"] }
+diskann-quantization = { version = "0.59.0", features = ["flatbuffers"] }
+diskann-utils = "0.59.0"
+diskann-vector = "0.59.0"
+enum_dispatch.workspace = true
+fastrand.workspace = true
+log = { workspace = true, features = ["std"] }
+
+parking_lot.workspace = true
+# 强制依赖：仅 quantization.rs 的 diskann 量化训练桥接（SphericalQuantizer::train/
+# Transform::new 形参绑定 rand 0.9.x Rng trait）使用；自有取样逻辑统一走 fastrand
+rand = "0.9"
+thiserror.workspace = true
+wbase = { workspace = true, features = ["future", "map"] }
+# webc.7 起库内零 tokio/compio：异步构造/查询返回纯 future，compio TPC 由宿主就地 await
+webc-diskann = { version = "0.59.0-webc.7", default-features = false }
+webc-diskann-providers = { version = "0.59.0-webc.7", default-features = false }
+
+[dev-dependencies]
+compio = { workspace = true, features = ["macros", "runtime"] }
+futures-executor = "0.3.34"
+wvector_test.workspace = true

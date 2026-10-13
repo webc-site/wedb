@@ -1,0 +1,11 @@
+# C# Dispose（:146）：consistentReadCts.Cancel + 释放 CTS 与会话自有 waiter
+# （ManualResetEventSlim）。rust 侧 ReplicaReadSessionContext 无 CancellationToken
+# 形态（一致读取消由调用方超时参数与 drop 作用域承接），ReadSessionWaiter 的
+# event_listener::Event 零 OS 资源，Arc 引用清零即释放，无显式 dispose 面
+- 文件:
+    - libs/server/AOF/ReadConsistency/ReplicaReadSessionContext.cs:
+        - Dispose
+  理由: >-
+    C# Dispose 取消并释放 consistentReadCts、释放会话自有 waiter 事件；
+    rust 无 CancellationToken（取消以超时参数承接）、waiter 事件随上下文
+    Arc 析构即释放，无显式 dispose 方法与调用面

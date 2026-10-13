@@ -1,0 +1,7 @@
+- 文件:
+    - test/standalone/Garnet.test.extensions/GarnetJSON/JSONPath/JsonPathExecuteTests.cs:
+        - StrictMatchWithInverseTestData
+        - StrictMatchTestData
+  理由: 测试数据装配辅助（严格匹配含取反语义的用例枚举源），无 rust 运行时
+    对应体；rust 严格匹配语义由 wext_json/tests/json_path_execute_tests.rs
+    的 equals_strict / not_equals_strict 等内联用例承接

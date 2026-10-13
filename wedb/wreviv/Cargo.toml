@@ -1,0 +1,34 @@
+[package]
+name = "wreviv"
+version = "0.1.2"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wreviv"
+description = "Size-binned free record pool for slot revivification"
+keywords = ["memory-pool", "revivification", "free-list", "recycling", "storage"]
+categories = ["memory-management", "data-structures", "concurrency", "database-implementations", "algorithms"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["addr"] }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+# 压测用例用 wbase::map 的 HashSet/HashSetExt，按消费者自声明惯例补 set 特性
+# （be1558e 与本分支 a322cb5 各加一行 dev-deps wbase，merge 后重复键，归并取特性并集）
+wbase = { workspace = true, features = ["addr", "set"] }
+log = { workspace = true }
+log_init = { workspace = true }
+wrecord = { workspace = true }
+
+[lints]
+workspace = true

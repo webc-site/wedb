@@ -1,0 +1,14 @@
+# C# StorageSession 联合存读包装：UnifiedStoreOps.GET(:23) 是 UnifiedInput/
+# UnifiedOutput 联合上下文的字符串域读包装（context.Read + Pending 完成
+# CompletePendingForUnifiedStoreSession），整值序列化联合读会话入口。
+# rust 采单存储引擎、命令层唯一实现，无 UnifiedInput/UnifiedOutput 联合
+# API 门面架构（见 task/review.md 板块 1「零全局可变状态」「全链路唯一机制」
+# 及 doc/zh 声明），联合包装层在 rust 单引擎无接线必要
+- 文件:
+    - libs/server/Storage/Session/UnifiedStore/UnifiedStoreOps.cs:
+        - GET
+  理由: >-
+    无需实现。命令层 network_get（resp/basic_commands/get.rs:38，锚
+    BasicCommands.cs:NetworkGET）唯一实现已覆盖净效果，UnifiedInput/
+    UnifiedOutput 联合包装层在 rust 单引擎无接线必要（同族裁决见
+    AdvancedOps.yml Read_UnifiedStore/RMW_UnifiedStore 姊妹条）

@@ -1,0 +1,6 @@
+# 堆外多缓冲分配器收敛：唯一消费者 ScratchBufferNetworkSender 已随假网络层删除
+- 文件:
+    - libs/server/ArgSlice/ScratchBufferAllocator.cs
+  理由: rust 侧 ScriptingApi::dispatch_resp 直收 &mut Vec<u8>，无 INetworkSender
+    形状约束，多缓冲链式分配机制随假网络发送器一并删除；单缓冲拼装由
+    wresp::RespWriter 直写 Vec<u8> 承接（归并去向见 libs/common/RespWriteUtils.cs）

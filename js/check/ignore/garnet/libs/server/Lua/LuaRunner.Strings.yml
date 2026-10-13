@@ -1,0 +1,8 @@
+# 常量注册便捷包装（零消费 pub 面普查批五）
+- 文件:
+    - libs/server/Lua/LuaRunner.Strings.cs:
+        - ConstantStringToRegistry
+  理由: >-
+    本仓常量串入注册表走真实链 LuaState::push_buffer + try_ref，取回走 push_ref，
+    注册表操作单点收在 LuaState；门面包装 ConstantStringToRegistry 零生产调用，
+    且与上述链构成同一事实（常量串落注册表 id）的第二个出口，故不实现。

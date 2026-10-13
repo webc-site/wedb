@@ -1,0 +1,19 @@
+# C# StorageSession.Dispose（StorageSession.cs:154，IDisposable）做四件事：
+# 自旋取 _zcollectTaskLock/_hcollectTaskLock 两把收集任务互斥锁 → 释放
+# sectorAlignedMemoryBitmap/Hll1/Hll2 三块会话级对齐刮擦缓冲 → 依次 Dispose
+# stringBasicContext/objectBasicContext/unifiedBasicContext/vectorBasicContext
+# 四套客户端会话。rust 侧无逐项对应物：
+# - StorageSession（wnode storage/session/storage_session.rs）是 BatchStoreSession
+#   的借用式薄包装，无自有堆资源与刮擦缓冲（C# 对齐内存位图只服务 C# 的
+#   指针域 SCAN/HLL 快路径，rust 扫描走调用方缓冲 + wkv 扫描迭代器）；
+# - 四套客户端会话在 rust 收敛为单一 wkv 批处理会话，生命周期随连接任务/
+#   StoreSession Arc Drop 收口，无显式 Dispose 面；
+# - zcollect/hcollect 收集任务互斥在 rust 由 wkv GcManager 单轮 inflight 闸
+#   （gc/mod.rs RunGuard RAII）与 GcHandle::stop/Drop 任务取消承接，对象成员
+#   收集宿主在 wnode（object_collect_all），均非会话释放顺序的一部分。
+- 文件:
+    - libs/server/Storage/Session/StorageSession.cs:
+        - Dispose
+  理由: rust StorageSession 为借用式包装，无自有非托管资源与会话级收集锁；
+    会话生命周期由 wkv 会话 Drop 收口，收集任务互斥由 wkv GcManager RunGuard
+    RAII 与 GcHandle stop 承接，显式 Dispose 面不存在

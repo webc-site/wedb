@@ -1,0 +1,8 @@
+- 理由: >-
+    私有 nibble 查表反转仅为 BitIndexCount 的 MSB 序计数服务；rust
+    wbitmap/src/bit_count.rs bit_index_count 改用编译期
+    BIT_RANGE_MASKS 掩码表 + count_ones 直接按 MSB
+    序计数，反转步骤整体消解
+  文件:
+    - libs/server/Resp/Bitmap/BitmapManager.cs:
+        - reverse

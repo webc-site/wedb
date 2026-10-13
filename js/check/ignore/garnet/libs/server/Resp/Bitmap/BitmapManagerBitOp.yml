@@ -1,0 +1,11 @@
+- 文件:
+    - libs/server/Resp/Bitmap/BitmapManagerBitOp.cs:
+        - InvokeNaryBitwiseOperation
+        - Vectorized128
+        - Vectorized256
+        - Vectorized512
+  理由: C# BitmapManagerBitOp.cs:67 的 InvokeNaryBitwiseOperation 与 :176/:229/:282 的
+    Vectorized512/Vectorized256/Vectorized128 系运行时按硬件向量宽度阶梯分派的 SIMD 内部辅助臂；
+    判例同 BitmapManagerBitCount.yml（不向下移植分级分派）：rust 侧 BITOP 由
+    wedb/wbitmap/src/bit_op.rs 的 BitOpAccumulator 增量折叠器直接承接（对齐 C# InvokeBitOperationUnsafe），
+    连续切片的原位位运算交由 LLVM 自动向量化优化，不在 rust 侧手写三套 ISA 宽度降级循环。

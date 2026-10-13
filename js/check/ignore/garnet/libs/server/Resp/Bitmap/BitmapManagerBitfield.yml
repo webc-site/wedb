@@ -1,0 +1,8 @@
+- 文件:
+    - libs/server/Resp/Bitmap/BitmapManagerBitfield.cs:
+        - IsLargeEnoughForType
+  理由: 有意改道而非漏接（逐调用点亲验）：C# IsLargeEnoughForType 为 LengthFromType(args) <= vlen，
+    仅在存储侧 RMWMethods.cs 用于 BITFIELD 预判长短。rust 无该存储侧预 sizing 设计， BITFIELD
+    整体改道在会话层/慢路径通过 new_block_alloc_length_from_type
+    （wnode/src/resp/bitmap/bitmap_commands.rs 与 basic_commands/slow.rs）单源判定并扩容，
+    无需另立独立判定函数。

@@ -1,0 +1,8 @@
+- 理由: C# GarnetObjectBase 虚序列化框架方法（基类空实现 + 派生类覆写）；rust 信封
+    编解码权威单点收敛在 wcol/src/object_payload.rs（GarnetObjectPayload::to_blob/from_blob
+    与 obj_encode/obj_decode_custom），GarnetObjectSerializer::serialize_internal 内联
+    标签 + 载荷写入；GarnetObject 上的重复包装 write_type/do_serialize 全仓零调用，删除
+  文件:
+    - libs/server/Objects/Types/GarnetObjectBase.cs:
+        - WriteType
+        - DoSerialize

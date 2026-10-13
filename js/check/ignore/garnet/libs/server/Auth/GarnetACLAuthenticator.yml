@@ -1,0 +1,20 @@
+# GarnetACLAuthenticator.cs 会话镜像面在 rust 随句柄单真源收敛移除。
+#
+# C# 基座持有会话级 _userHandle（IsAuthenticated => _userHandle != null，
+# GetUserHandle() 供 RESP 面直读，libs/server/Resp/ACLCommands.cs:NetworkAclWhoAmI）。
+# rust 侧句柄镜像已废弃：已认证用户唯一真源为会话
+# wedb/wnode/src/resp/resp_server_session/auth.rs 的 acl_user_handle
+# （WHOAMI 直读会话句柄；认证器收敛为无状态纯判定
+# wacl/src/auth/garnet_acl_authenticator.rs:authenticate，成功返回引导句柄、
+# 不驻会话态），镜像访问器随之删除，无第二处可同步的态。
+
+- 文件:
+    - libs/server/Auth/GarnetACLAuthenticator.cs:
+        - IsAuthenticated
+        - GetUserHandle
+  理由: >-
+    认证器会话镜像面废弃：已认证位与句柄唯一真源为会话 acl_user_handle
+    （resp_server_session/auth.rs:set_user_handle 单点挂载，WHOAMI/权限门
+    直读；authenticator 为 None 即免认证形态），认证器本体无状态纯判定
+    （authenticate 成功返回引导期内存单例句柄不落态），镜像属性/访问器
+    零消费随收敛删除

@@ -1,0 +1,14 @@
+# InfoMetricsType 单点在 wresp/src/metrics/info_metrics_type.rs（对标 C# 同名类型），
+# 客户端与服务端共引一份。
+- 文件:
+    - libs/common/Metrics/InfoMetricsType.cs:
+        - GetRespFormattedInfoSection
+  理由: C# 该助手把段名预格式化成 RESP bulk string（`$len\r\n<NAME>\r\n`），
+    是因为 GarnetClient 命令面以「预格式化字节数组」为入参形态（配合
+    ExecuteForStringResult(mainCmd, args) 直接拼帧）。rust 客户端命令面统一以
+    裸 token 入参、由 wconn 出帧（execute_for_string_result_async），预格式化
+    副本会被二次成帧，无对应入参形态可承接，故不复刻该助手。线上口径改由
+    InfoMetricsType::as_cs_name 承接（与 C# `$len\r\n<NAME>\r\n` 中的 `<NAME>`
+    同为 C# 枚举名大写串），默认段 SERVER 与 C# 返回 null 等价（只发 `INFO`
+    不带段参数）。见 wedb/wresp/src/metrics/info_metrics_type.rs 与
+    wedb/wconn/src/api.rs:info。

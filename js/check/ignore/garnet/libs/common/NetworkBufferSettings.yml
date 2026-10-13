@@ -1,0 +1,16 @@
+# rust 复制/迁移/服务端网络缓冲采全局单池（尺寸单点 wbase/src/pool/limited.rs
+# 的 DEFAULT_BUFFER_SIZE 与 DEFAULT_MAX_POOL_SIZE，各装配点直建 LimitedFixedBufferPool::new），
+# C# 规格聚合对象与建池入口在 rust 无第二套规格必要
+- 文件:
+    - libs/common/NetworkBufferSettings.cs:
+        - GetInclusive
+        - CreateBufferPool
+  理由: 零消费死规格整面删除（task/ing/replication-network-buffer-spec-dead）。
+    C# GetInclusive/CreateBufferPool 服务「每流差异化缓冲规格聚合后建池」形态，
+    rust 侧各流分包/装批尺寸由装配点本地常量承接（replica_diskless_sync 的
+    DEFAULT_DISKLESS_CHUNK_SIZE、snapshot_transmission 的 SNAPSHOT_CHUNK_SIZE、
+    migrate_driver/keys 的 MAX_CHUNK_FALLBACK、migration_manager 的
+    max_send_buffer_content_size），池统一按单点尺寸直建，不复刻规格对象；
+    规格消费点 ReplicationNetworkBufferSettings.cs 与 ReplicaSyncSession/
+    ReplicaDisklessSync/AofSyncTask/ReplicationSnapshotIterator 的引用面同因
+    登记见 garnet/libs/cluster/Server/Replication/ReplicationNetworkBufferSettings.yml

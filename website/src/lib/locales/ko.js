@@ -1,0 +1,81 @@
+export default {
+  "meta.title": "WeDB Bench",
+  "meta.description":
+    "wedb의 redb 동형 벤치마크: wkv와 wbftree를 fjall, rocksdb, sqlite와 네 가지 러너 이미지에서 비교 — 표, 가로 막대 비교 차트, 커밋별 추이.",
+
+  "nav.section.bars": "차트",
+  "nav.section.trend": "추이",
+  "nav.section.table": "최신 표",
+  "nav.data": "원시 데이터",
+  "nav.github": "GitHub",
+  "nav.lang": "언어",
+
+  "hero.title": "redb의 기준으로 측정하는 wedb",
+  "hero.body":
+    "행 순서, 단위, 굵게 표시 규칙 모두 redb-bench를 따릅니다: 동일한 18개 워크로드 구간, 동일한 속도 단위, 동일한 행 내 최고 표시. 테스트 대상은 wedb 자체의 wkv(해시 로그 KV)와 wbftree(순서형 B+ 트리)이며 fjall, rocksdb, sqlite와 비교합니다.",
+  "hero.scale_standard": "redb 표준 스케일",
+  "hero.headline": "{bulk} 일괄 · {sorted} 정렬 · 키 {key}B · 값 {value}B",
+  "hero.columns_platforms": "열 {columns}개 · 플랫폼 {platforms}개",
+  "hero.empty": "아직 벤치마크 데이터가 없습니다: main 브랜치의 Benchmark 실행이 끝나면 채워집니다.",
+
+  "section.bars.title": "플랫폼별 직접 비교",
+  "section.bars.desc": "워크로드 구간을 선택해 한 플랫폼의 엔진들을 비교합니다. 막대 길이는 해당 구간의 값이며, ★는 가장 빠른 엔진을 표시합니다.",
+  "section.trend.title": "커밋 간 추이",
+  "section.trend.desc":
+    "같은 플랫폼의 시간 흐름, main 브랜치 실행마다 한 점 — 단일 스냅샷보다 회귀 감지에 적합합니다. 점에 마우스를 올리면 엔진, 버전, 직전 실행 대비를 볼 수 있습니다.",
+  "section.table.title": "최신 표",
+  "section.table.desc":
+    "선택한 플랫폼의 최근 실행 전체 표: 행 순서, 단위, 굵게 규칙이 redb가 공개하는 표와 동일해 나란히 읽을 수 있습니다.",
+
+  "pane.bars": "단일 구간",
+  "pane.trend": "커밋 간 추이",
+  "bars.higher_better": "높을수록 좋음",
+  "bars.empty": "비교할 플랫폼 데이터가 없습니다.",
+  "bars.aria": "선택한 워크로드 구간에서 각 엔진의 가로 막대 비교",
+  "bars.best_hint": "★ 구간 내 최고 속도",
+
+  "trend.aria": "선택한 워크로드 구간에서 각 엔진의 커밋별 추이",
+  "trend.empty": "아직 추이 데이터가 없습니다: main 브랜치 실행이 끝날 때마다 한 점이 추가됩니다.",
+  "trend.dots":
+    "{n}개 점 · 가로축의 각 점에는 해당 실행의 버전 표시 · 공백은 그 열이 해당 실행에서 값을 내지 못했음(크래시, 시간 초과, 매트릭스 미포함)을 의미하며, 선은 거기서 끊기고 보간하지 않습니다.",
+  "trend.tip_delta": "직전 실행 대비",
+  "trend.tip_na": "데이터 없음",
+
+  "table.empty": "이 플랫폼에는 선택한 실행의 데이터가 없습니다.",
+  "table.utc": "UTC",
+  "table.workload":
+    "{bulk} 일괄 · {sorted} 정렬 · 랜덤 읽기 {reads} · 범위 읽기 {scans}×{scan_len} · 키 {key}B · 값 {value}B · 캐시 {cache}",
+  "table.median_note":
+    "읽기 구간은 {n}회 실행의 중앙값입니다. 각 열은 별도 서브프로세스에서 실행되므로 크래시나 시간 초과의 열은 전체가 N/A가 됩니다.",
+  "status.crashed": "크래시",
+  "status.timeout": "시간 초과",
+  "commit.local": "로컬",
+
+  "foot.line1":
+    "표는 bench 팩토리 측(Rust)에서 생성됩니다: 18개 워크로드 구간, 단위 레이블, 행 내 최고 굵게 표시 규칙 모두 crates/wedb-bench에 있으며, 사이트는 기계 가독 JSON만 소비하고 서식화를 다시 구현하지 않습니다.",
+  "foot.line2":
+    "파이프라인: Benchmark 워크플로가 네 러너 이미지에서 엔진당 한 열을 실행하고, benchreport merge가 플랫폼별 표로 병합해 히스토리에 추가하며, Website 워크플로가 사이트와 히스토리를 gh-pages에 게시합니다.",
+  "foot.line3": "데이터는 main 브랜치 벤치마크 실행마다 갱신됩니다.",
+  "foot.links": "링크",
+  "foot.workflow_bench": "Benchmark 워크플로",
+  "foot.workflow_website": "Website 워크플로",
+
+  "bench.row.bulk_load": "일괄 적재",
+  "bench.row.individual_writes": "개별 쓰기",
+  "bench.row.small_batch_writes": "소배치 쓰기",
+  "bench.row.sorted_inserts": "정렬 삽입",
+  "bench.row.nosync_writes": "nosync 쓰기",
+  "bench.row.len": "len()",
+  "bench.row.random_reads": "랜덤 읽기",
+  "bench.row.random_range_reads": "랜덤 범위 읽기",
+  "bench.row.random_reads_4_threads": "랜덤 읽기 (4 스레드)",
+  "bench.row.random_reads_8_threads": "랜덤 읽기 (8 스레드)",
+  "bench.row.random_reads_16_threads": "랜덤 읽기 (16 스레드)",
+  "bench.row.random_reads_32_threads": "랜덤 읽기 (32 스레드)",
+  "bench.row.removals": "삭제",
+  "bench.row.retain": "retain",
+  "bench.row.extract_if": "extract_if",
+  "bench.row.pop": "pop",
+  "bench.row.uncompacted_size": "컴팩트 전 크기",
+  "bench.row.compacted_size": "컴팩트 후 크기",
+};

@@ -1,0 +1,43 @@
+[package]
+name = "wbftree"
+version = "0.1.6"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wbftree"
+description = "BfTree ordered range index with multi-tree registry and chunked migration"
+keywords = ["bftree", "range-index", "ordered-index", "storage-engine", "key-value"]
+categories = ["database-implementations", "data-structures", "asynchronous", "caching", "concurrency"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+arc-swap.workspace = true
+bf-tree = { workspace = true }
+event-listener.workspace = true
+fastrand = { workspace = true }
+log.workspace = true
+parking_lot = { workspace = true }
+smallvec.workspace = true
+thiserror = { workspace = true }
+wbase = { workspace = true, features = ["align", "backoff", "base32", "map", "striped", "time"] }
+wdev.workspace = true
+wepoch.workspace = true
+whasher = { workspace = true }
+
+[dev-dependencies]
+aok = { workspace = true }
+ctor = { workspace = true }
+log_init = { workspace = true }
+
+[dev-dependencies.compio]
+workspace = true
+features = ["macros", "runtime", "time"]
+
+[lints]
+workspace = true

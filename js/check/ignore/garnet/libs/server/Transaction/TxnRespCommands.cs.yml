@@ -1,0 +1,6 @@
+# NetworkRUNTXPFast 为 C# 从接收缓冲元数据槽直读参数计数的快路径。
+# rust 托管解析态已携带计数，直通慢路径 NetworkRUNTXP，无需快路径。
+- 文件:
+    - libs/server/Transaction/TxnRespCommands.cs:
+        - NetworkRUNTXPFast
+  理由: 托管解析态已携带参数计数，直通慢路径 NetworkRUNTXP，无需快路径。

@@ -1,0 +1,11 @@
+# 设备类型四态分派域不移植（fixloop wconf-device-config-dead-module）。
+# C# 链路：命令行 --device → GarnetServerOptions.DeviceType → Devices.CreateLogDevice
+# 按 LocalStorage/Native/LocalMemory/Sharded 分派四设备（Devices.cs:36-59）。
+# rust 设备形态固定 wdev SegmentedDevice 单设备（wnode service.rs 构造单点
+# SegmentedDevice::single_file），无类型分派消费面；判定依据同 storage.yml
+# 已有的 Devices.cs 文件级登记（设备构造单点 wdev，无工厂分发）。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Device/DeviceType.cs
+  理由: >-
+    设备类型枚举仅服务 CreateLogDevice 四态工厂分派；rust 固定 SegmentedDevice
+    单设备形态，无分派面，原 rust 对位件 wconf/device_config.rs 已随死码删除。

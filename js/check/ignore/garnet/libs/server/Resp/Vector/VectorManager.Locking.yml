@@ -1,0 +1,18 @@
+# 向量锁死包装清理：C# AcquireExclusiveLocks 是 VREM/VSETATTR 写路径的
+# VectorManager 独占锁入口；rust 侧写路径直接消费 VectorSetLocks::
+# acquire_exclusive/try_acquire_exclusive 原语（vector_manager_cleanup.rs:354、
+# vector_manager_locking.rs:284/:325），无会话层包装必要
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.Locking.cs:
+        - AcquireExclusiveLocks
+  理由: 全仓零调用死代码已删除；锁原语层（acquire_exclusive 族）保持活跃，
+    该 C# 函数仅是原语上的零逻辑转发
+- 文件:
+    - libs/server/Resp/Vector/VectorManager.Locking.cs:
+        - Dispose
+  理由: >-
+    VectorSetLock ref struct 的 Dispose = 释锁 + 清线程静态 ActiveThreadSession
+    上下文 + 清 ActiveThreadSession 读几何缓存；rust 锁为 parking_lot 读写守卫
+    随作用域 Drop 释放（read_or_create_vector_index 的共享/独占守卫），线程静态
+    会话上下文与读几何缓存两机制位不存在（存储会话经回调显式传参、读几何随次
+    给定），无显式释放函数面

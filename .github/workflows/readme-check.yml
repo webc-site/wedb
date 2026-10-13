@@ -1,0 +1,43 @@
+name: README 派生校验
+
+# README.md 与 readme/{en,zh}/bench.md 是 js/readme.js 的生成物（表格数字由 bench 工厂端的
+# benchreport 渲染，脚本只搬运）。这条门禁不碰 cargo，只确认两件事：
+#   1. README.md 确实是 readme/{en,zh}.md 的装配产物 —— 手改主文件会红；
+#   2. 分章里的 WEDB-BENCH 围栏还在 —— 围栏被删意味着下次回写会炸。
+
+on:
+  push:
+    paths:
+      - "README.md"
+      - "readme/**"
+      - "js/readme.js"
+  pull_request:
+    paths:
+      - "README.md"
+      - "readme/**"
+      - "js/readme.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: readme-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: 装配一致性
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify README assembly
+        run: node js/readme.js --verify

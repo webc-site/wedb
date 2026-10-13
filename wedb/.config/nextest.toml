@@ -1,0 +1,49 @@
+[profile.default]
+# 5s 标慢（>5s 即入 SLOW 行与终局慢测摘要）；terminate-after=36 维持
+# 原 180s 终止线不变（36x5s = 原 2x90s），红绿判定不动
+slow-timeout = { period = "5s", terminate-after = 36 }
+leak-timeout = "500ms"
+
+# CPU/线程争用敏感测试划入低并发组：此类协作式 stress 的固定迭代/期限断言
+# 在 nextest 全量高并发下被调度争用放大数十倍（实测 concurrent_put_take_purge_stress
+# 单跑 0.74s → 全量 34.7s；scan_compact_survives_concurrent_ring_recycling
+# 0.26s → 15.3s），限流按序推进后总墙钟反降
+[test-groups]
+cpu-heavy = { max-threads = 2 }
+
+# 争用敏感单（2026-09-25 A/B 实测墙钟 -33%，8dff028；恢复被 44fad5e 一并移除的
+# 本段）：stress/concurrent 族为争用膨胀重灾关键词
+[[profile.default.overrides]]
+filter = "test(stress) | test(concurrent) | test(race) | test(contention) | test(barrier) | test(window_race) | test(multithread) | test(threads) | test(mid_batch_corruption)"
+test-group = "cpu-heavy"
+
+# 2026-09-27 增补圈（单跑/全量膨胀比实测）：latch 族 80x（pair_arm_first_slot_latch
+# 0.08s → 6.4s）、coldread 门控交替 2.8x（5s → 14.2s）、rc_collision 碰撞搜索
+# 2.5x、reviv 链走查 4x、degrade 注入族 4.4x（slot_keys 1.5s → 10.7s）
+[[profile.default.overrides]]
+filter = "test(latch) | test(coldread_recheck) | test(rc_collision) | test(reviv_take) | test(degrade)"
+test-group = "cpu-heavy"
+
+# 2026-09-28 增补：aof 并行回放对齐族自带 BOUNDED_TIMEOUT=30s 期限断言
+# （aof_recover_parallel_leader_barrier.rs:39），单跑 5s 全量争用下放大破限
+# 自断言红（poison_before_flush_same_batch 30.23s，非配置截停）
+[[profile.default.overrides]]
+filter = "test(parallel_recover)"
+test-group = "cpu-heavy"
+
+# 2026-09-30 增补圈（全量 libtest-json 计时 + 单跑复核）：wnode 服务器启停/
+# 冷存储装配/tiered 冷热升降族在 12 路全量并发下膨胀极端——
+# default_arm_flushed_registry_not_resurrected_on_recover 单跑 0.31s →
+# 全量 60.3s（190x）。圈定口径：全量耗时 >=2s 榜（75 文件 671s）去既有
+# overrides 覆盖与已 #[ignore] 的 537MB 帧对拍后逐文件圈定；集成测试须用
+# binary(<文件stem>) 谓词（test() 只匹配测试 fn 全路径，文件 stem 空转），
+# wkv src 内嵌测试用 test(<mod 路径::fn>)。fast 面无 tiered 通道全量物化
+# ~380ms/命令被调度争用再放大
+[[profile.default.overrides]]
+filter = "binary(tiered_cmds_align) | binary(vector_default_arm_reclaim) | binary(rename_tiered_aof_replay) | binary(store_dest_cold_upgrade) | binary(object_read_accounting) | binary(tiered_promote_aof_replay) | binary(custom_read_meta_gate) | binary(vector_quantization_task_count_assembly) | binary(vector_quantization_worker_lifecycle) | binary(collection_adaptive_tiering) | binary(vector_quantization_worker_nonroot_domain) | test(store::flush_database::test_flush_storm_backlog_disposes_all_engines_and_batched_unlink) | binary(tiered_field_ttl) | binary(resp_blocking_commands) | binary(tiered_steady_state_aof_replay) | binary(tiered_promote_demote_ttl) | binary(rename_migration_ttl_window) | test(store::elide_gate::test_upsert_no_elide_while_src_still_on_chain) | binary(large_value_e2e) | binary(node_connection_gossip_delay) | binary(tiered_background_demote) | binary(resp_roaring_bitmap_tests) | binary(set_cond_tiered_matrix) | binary(cluster_shard_sub_unsubscribe_on_slot_migration) | binary(collection_cache_budget_fallback) | binary(boot_gossip_delay_saturate) | binary(msetnx_atomic) | binary(database_manager_multi_sublog_checkpoint) | binary(config_export_boot_resilience) | binary(scan_keys_alloc_fail_smooth) | binary(service) | binary(resp_list) | binary(aof_size_limit_task) | binary(vector_set_production_switch) | test(store::flush_database::test_flush_release_waits_safety_epoch_and_old_domain_recovers) | binary(cluster_boot_smoke) | test(store::resize::test_grow_abort_bounded_on_rolledback_chunk) | binary(tiered_expire_sweep_failure) | binary(tiered_promote_contract_gate) | binary(get_slow_arm_object_wrongtype) | test(store::resize::test_split_error_propagates_and_aborts_grow) | binary(index_auto_grow_task) | binary(tiered_list_lrange_window) | test(overflow_and_chain::test_write_paths_share_overflow_extension_kernel) | binary(replica_wire_integration) | test(store::resize::test_rolledback_chunk_blocks_waiter_and_session_write) | binary(transaction_tests) | binary(tls_shutdown_tail_timeout) | binary(hash_read_ttl_solidify) | binary(client_commands_tests) | binary(hyperloglog) | binary(info_uptime_prewarm) | binary(server_cert_reload) | binary(vector_quant_backfill_delete_lock) | binary(boot_guard_test) | binary(tiered_watch_fence) | binary(zset_r15_parity) | test(overflow_and_chain::test_overflow_chain_cycle_detection) | binary(tiered_list_export_member_codec)"
+test-group = "cpu-heavy"
+
+# 并发压力测试在全核并发高争用下有极低概率的调度级超时，自动重试兜底
+[[profile.default.overrides]]
+filter = "test(test_fast_commit_concurrent_waiters_barrier) | test(scan_compact_survives_concurrent_ring_recycling) | test(cluster_divergent_replicas_test) | test(checkpoint_import_end_to_end_over_socket) | test(flushall_broadcast_flushes_all_primaries) | test(diskless_sync_streams_range_index_and_vector_sets) | test(mid_batch_corruption) | test(mixed_sync_async_expire_persist_keeps_serial_invariants) | test(network_exec_contended_retry_watch_keys_do_not_inflate) | test(poison_before_flush_same_batch_parallel_recover_bounded_error) | test(mid_batch_corruption_parallel_recover_bounded_error)"
+retries = 3

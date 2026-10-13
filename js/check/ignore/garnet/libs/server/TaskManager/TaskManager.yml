@@ -1,0 +1,10 @@
+- 文件:
+    - libs/server/TaskManager/TaskManager.cs:
+        - Dispose
+        - IsRegistered
+        - IsRunning
+        - RegisterAndRun
+        - WaitAsync
+        - WrapWithCleanupAsync
+  理由: 注册表托管面判定不移植：compio 一线程一运行时拓扑下跨线程注册/取消前提不成立， 生命周期唯一轨由 primary_tasks 域 + wkv
+    GC 域承接（双轨归一，删除未接线死轨）。

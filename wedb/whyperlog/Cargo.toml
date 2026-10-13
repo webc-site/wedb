@@ -1,0 +1,26 @@
+[package]
+name = "whyperlog"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/whyperlog"
+description = "High performance HyperLogLog cardinality estimation algorithm"
+keywords = ["hyperloglog", "cardinality", "probabilistic-data-structures"]
+categories = ["data-structures", "algorithms"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+wbase = { workspace = true, features = ["hash"] }
+
+[dev-dependencies]
+aok = { workspace = true }

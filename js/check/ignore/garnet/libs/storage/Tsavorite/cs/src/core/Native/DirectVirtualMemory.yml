@@ -1,0 +1,12 @@
+# C# 直接虚拟内存 P/Invoke 私有臂：munmap / VirtualFree 为 DirectVirtualMemory.
+# Free 的 posix/windows 两条平台内调用，rust 由 DirectVmBlock 持有 mmap 句柄
+# RAII drop 单点承接（windex/src/ram/direct_vm.rs:free 已锚 Free，释放路径
+# 同一处）；Clear 为 Windows 显式页清零，rust 依赖 demand-zero 新映射语义
+# （ allocate 全新 mmap 恒零页）无须第二清零口。三臂均无独立转写面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/Native/DirectVirtualMemory.cs:
+        - munmap
+        - VirtualFree
+        - Clear
+  理由: 平台 P/Invoke 私有臂由 RAII drop（Free 锚点承接）与 demand-zero 新映射
+    语义结构性吸收，无独立符号面

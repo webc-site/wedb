@@ -1,0 +1,13 @@
+- 理由: >-
+    事务统计面随 TryTransactionProc 裁剪（deviations.md
+    §205）：两计数唯一生产消费点 Custom/CustomRespCommands.cs
+    TryTransactionProc 随动态注册管理层整体裁撤不转写，计数生产恒
+    0，字段、访问器与 INFO STATS
+    两行整体删除（wmetric/src/garnet_session_metrics.rs
+    十字段清单单源）
+  文件:
+    - libs/server/Metrics/GarnetSessionMetrics.cs:
+        - incr_total_transaction_commands_received
+        - incr_total_transaction_execution_failed
+        - get_total_transaction_commands_received
+        - get_total_transaction_commands_execution_failed

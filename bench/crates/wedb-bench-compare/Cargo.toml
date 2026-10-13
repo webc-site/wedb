@@ -1,0 +1,42 @@
+[package]
+name = "wedb-bench-compare"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+publish = false
+description = "跨引擎对比评测：自家 hash/bftree 与 fjall / rocksdb / sqlite 的同表对比"
+
+# 每个引擎一个 feature：CI 的单引擎任务只编译自己那一列，
+# 避免 rocksdb 这类带原生构建依赖的引擎拖慢其它列。
+[features]
+default = ["hash", "bftree", "fjall", "rocksdb", "sqlite"]
+hash = ["wedb-bench/hash"]
+bftree = ["wedb-bench/bftree"]
+bftree_native = ["dep:bf-tree"]
+fjall = ["dep:fjall"]
+rocksdb = ["dep:rocksdb"]
+sqlite = ["dep:rusqlite"]
+
+[dependencies]
+wedb-bench = { path = "../wedb-bench", default-features = false }
+bf-tree = { version = "0.5.6", optional = true }
+fjall = { version = "3.1.12", optional = true }
+rocksdb = { version = "0.25.0", default-features = false, features = ["lz4", "bindgen-runtime"], optional = true }
+rusqlite = { version = "0.40.2", features = ["bundled"], optional = true }
+
+[[bench]]
+name = "compare_benchmark"
+harness = false
+
+# 多线程读扩展性探针：归因与 A/B 专用，不进对基口径
+[[bench]]
+name = "mt_read_probe"
+harness = false
+
+# range 段驱动形态 A/B 探针：归因与 A/B 专用，不进对基口径
+[[bench]]
+name = "range_probe"
+harness = false
+
+[dev-dependencies]
+fastrand = "2.5.0"

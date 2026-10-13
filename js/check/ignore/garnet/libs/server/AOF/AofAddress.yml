@@ -1,0 +1,5 @@
+- 文件:
+    - libs/server/AOF/AofAddress.cs:
+        - SetValueIf
+  理由: AofAddress 整体持锁访问（RwLock 向量的读写锁），不存在按槽比较换值的并发场景； 截断/安全水位推进的取大取小判据已单点化于
+    waof/src/aof/address.rs

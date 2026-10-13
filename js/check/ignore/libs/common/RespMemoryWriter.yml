@@ -1,0 +1,8 @@
+- 理由: >-
+    通用 >N\r\n push 帧写口在 rust 退化为预组合前缀常量：唯一生产方 PubSub
+    的 push 消息帧由 wresp/src/cmd_strings.rs
+    PUBSUB_PUSH_*_PREFIX_RESP2/RESP3 常量整帧承接，无动态长度
+    push 写口的调用面
+  文件:
+    - libs/common/RespMemoryWriter.cs:
+        - WritePushLength

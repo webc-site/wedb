@@ -1,0 +1,34 @@
+# wcol-object-store-parallel-abstraction（fixloop）：rust 迁移/AOF 传送的对象值即
+# wkv 信封原始字节（ObjectEnvelope 记录不透明搬运，见 wedb/src/server/migration/
+# migrate_driver/live_value.rs 直读 read_tag_with 与 waof 分块记录通道），C# 为
+# >2GB 对象不落单 byte[] 而做的流式环分块序列化（SerializeObjectValue 经
+# ChunkedObjectSerializer 环形缓冲）在 rust 无对位需求面；曾挂靠已删的
+# GarnetObjectSerializer::serialize_object_value 假映射，随死层一并移除。
+- 文件:
+    - libs/server/MigrationChunkWriterAccumulator.cs:
+        - SerializeObjectValue
+  理由: 对象值迁移以信封原始字节直传（waof 分块记录承载切分），无逐对象流式
+    分块序列化消费面，不移植。
+# task/ing/networking-and-migration-ignore-backfill.md 条 6：该类的累积消费面。
+# 取证：C# MigrationChunkWriterAccumulator.cs:30 实现 IChunkedObjectSerializerConsumer，
+# :56 Reset 与 :128/:142 两个 Consume 重载（同一符号的两次重载，登记一次），
+# 存在前提是 C# 输出同时有指针缓冲（dcurr/dend）与堆/池 Memory 两种形态，大对象
+# 序列化溢出时先把溢出块累积进 UnifiedOutput.Accumulator（libs/server/UnifiedOutput.cs:26，
+# 创建点 libs/server/Storage/Functions/UnifiedStore/ReadMethods.cs:201），再由
+# libs/cluster/Server/Migration/MigrateSessionCommonUtils.cs:122
+# WriteOrSendAccumulatedRecordAsync 整条发出。rust 会话输出统一 Vec<u8>、无第二形态
+# 出口，「累积」这件事不存在，只有切块与拼块两端且两端皆有实现与锚：切块口
+# wedb/wconn/src/record.rs:394 产 MigrationFrame::Chunk（分块发送面 send_chunked_record
+# 同文件 :511），重组口 wedb/wedb/src/server/migration/chunk_reassembler.rs
+# （ChunkedRecordReassembler/Append/Process/Reset 四锚在册）与
+# wedb/wedb/src/server/migration/frame_import.rs 的 Chunk 臂。同根因判例见
+# task/done/resp-server-session-output-ignore-decl.md（ProcessOutput 同形态登记）
+- 文件:
+    - libs/server/MigrationChunkWriterAccumulator.cs:
+        - Reset
+        - Consume
+  理由: >-
+    双形态输出出口在 rust 不存在（会话输出统一 Vec<u8>），无逐块累积器可挂：
+    大记录分块在发送面单点完成（wconn/src/record.rs:394 产 Chunk 帧），
+    接收面由 migration/chunk_reassembler.rs 与 frame_import.rs 的 Chunk 臂重组，
+    切块-拼块两端均有实现与锚，中间累积层按转写红线不移植

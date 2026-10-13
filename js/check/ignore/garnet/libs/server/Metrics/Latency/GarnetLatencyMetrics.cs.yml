@@ -1,0 +1,6 @@
+# C# Dump 为调试诊断日志输出方法（全仓零消费，测试面与生产面均经 RESP LATENCY 读出）；
+# rust 生产走 write_histogram_info 与 percentile 导出单轨，dump 调试口零消费已退役。
+- 文件:
+    - libs/server/Metrics/Latency/GarnetLatencyMetrics.cs:
+        - Dump
+  理由: C# 调试日志方法（全仓零生产调用），rust 延迟指标经 RESP LATENCY 直方图单轨导出，dump 调试口零消费已退役

@@ -1,0 +1,21 @@
+# task/ing/data-check-ledger-hygiene.md 问题 二.3（HashObject 两件）
+# 取证：C# HashObject.cs:219 Dispose 是空体（{ }，仅满足常驻对象的 IDisposable 形状）、
+# :222 Clone 是 `new HashObject(hash, expirationTimes, expirationQueue, HeapMemorySize)`
+# 的四字段手抄。rust 侧 HashObject（wcol/src/hash/hash_object.rs:88）为
+# #[derive(Debug, Clone)]，复制语义由 derive 生成、无手写方法体可挂锚；
+# 释放面在 rust 无常驻对象层（信封值随作用域析构），同口径结论已在档
+# task/done/my-wcol-count-name-split.md:20（rust 信封无常驻对象层、无 C# 后台线程，
+# 物理剔除唯一路径是读路径 purge + mutated_by_ttl 升格写回）
+- 文件:
+    - libs/server/Objects/Hash/HashObject.cs:
+        - Clone
+  理由: >-
+    克隆由 wcol/src/hash/hash_object.rs:88 的 derive(Clone) 承接，四字段复制语义
+    即结构体逐字段拷贝，无 C# 那枚手写 Clone 方法体可挂符号锚
+- 文件:
+    - libs/server/Objects/Hash/HashObject.cs:
+        - Dispose
+  理由: >-
+    C# 本体即为空（{ }），是常驻对象层的 IDisposable 形状要求；rust 信封无常驻
+    对象层，资源随所有权析构释放，无对位方法体（同口径见
+    task/done/my-wcol-count-name-split.md）

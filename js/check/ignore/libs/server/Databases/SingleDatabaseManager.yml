@@ -1,0 +1,10 @@
+- 理由: >-
+    C# 单转发（=>
+    RecoverDatabaseAOFAsync(defaultDatabase)）折叠进
+    wnode/src/service.rs
+    open_recovered_with_config_and_aof
+    恢复装配：aof.log().recover_async() 设备面恢复 +
+    mgr.replay_aof(u64::MAX) 全量重放
+  文件:
+    - libs/server/Databases/SingleDatabaseManager.cs:
+        - RecoverAOFAsync

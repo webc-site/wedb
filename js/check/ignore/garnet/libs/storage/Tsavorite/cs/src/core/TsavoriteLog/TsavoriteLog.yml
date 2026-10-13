@@ -1,0 +1,55 @@
+# TsavoriteLog 域缺失符号甄别（fixloop tsavorite-core-miss）。
+# 判定原则：waof WalLog 为 TsavoriteLog 全量对标（提交流水线/恢复/扫描已挂锚），
+# 本文件登记回调模型与遗留容器的消除项。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs:
+        - AsyncGetFromDiskCallback
+        - UnsafeShiftBeginAddress
+        - Dispose
+  理由: >-
+    AsyncGetFromDiskCallback 为 C# 磁盘页读 IO 完成回调（callback 驱动状态机）；
+    rust compio 调用方驱动 await（waof iterator 内联 read_range），无回调注册面。
+    UnsafeShiftBeginAddress 为 C# 恢复/截断期 BeginAddress 裸推；rust waof 恢复
+    经 recover 单点重放定界 begin、截断经 truncate（先刷后截，持 commit_lock），
+    无裸推面。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEntryConsumer.cs:
+        - Throttle
+  理由: >-
+    C# 消费限流等待（磁盘落后时背压）；rust waof 环形缓冲覆盖式提交（未落盘
+    即被覆写的记录由 overwritten_skips 观测，waof/src/wal/iterator.rs），无
+    背压限流面，提交节奏由 group commit leader 级联驱动。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IReadOnlySpanBatch.cs:
+        - Get
+  理由: >-
+    C# 批量 SpanByte 容器接口（按索引取条目）；rust 原生切片参数
+    `&[&[&[u8]]]`（waof pipeline enqueue_frames）承担，无容器 trait。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogRecoveryInfo.cs:
+        - Initialize
+        - Reset
+        - ToByteArray
+  理由: >-
+    C# 恢复元数据容器（版本/cookie/committers 列表 + ToByteArray 持久化）；
+    rust 恢复元数据经 waof commit 帧解码（waof/src/wal/commit.rs encode/decode_
+    payload）与 recover 单点承担（recovered_cookie/recover_truncation 读取
+    API），元数据随提交帧原子落盘，无独立容器类型与手写序列化（bitcode/定长
+    帧替代）。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanIterator.cs:
+        - WaitAsync
+        - Dispose
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanSingleIterator.cs:
+        - Dispose
+  理由: >-
+    WaitAsync 为 C# 等待更多数据（在途提交追平）；rust iterator next 的异步
+    挂起内联等待（compio，safe_tail 钳制语义见 whlog ZERO_HEADER_SPIN_BUDGET
+    对照论证）；Dispose 为迭代器显式释放，rust 迭代器借用生命周期 RAII。
+- 文件:
+    - libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogSettings.cs:
+        - Dispose
+        - ToString
+  理由: >-
+    rust WalConfig 纯数据配置结构（waof/src/wal/config.rs，Copy 语义），无
+    IDisposable 面；调试输出经 std Debug 派生，无手写 ToString。

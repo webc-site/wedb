@@ -1,0 +1,12 @@
+- 理由: >-
+    C# 虚工厂 override 随动态命令分发删除（transpile SKILL：静态枚举分发
+    / enum + match 承接）；rust 为
+    wext_json/src/json_commands/
+    静态命令描述符表（updater:/reader:
+    字段），json.set→json_set_updater、json.get→json_get_reader（set_get.rs），读写只读拒绝臂
+    reject_write_only/reject_read_only_update，头尾单源
+    common.rs
+  文件:
+    - modules/GarnetJSON/JsonCommands.cs:
+        - Updater
+        - Reader

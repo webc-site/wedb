@@ -1,0 +1,7 @@
+- 理由: GetResponseObjectHead/GetResponseObjectTail 为 C# 网络发送器头尾指针对
+    （输出管道直写）；rust 假网络层响应经 get_response/spare_capacity_mut 承接，
+    两方法全仓零调用（tail 为 head 唯一调用方，级联删除），随死代码清理删除
+  文件:
+    - libs/server/Lua/ScratchBufferNetworkSender.cs:
+        - GetResponseObjectHead
+        - GetResponseObjectTail

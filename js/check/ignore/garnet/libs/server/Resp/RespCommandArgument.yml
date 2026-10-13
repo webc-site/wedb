@@ -1,0 +1,11 @@
+# 命令参数元数据的 System.Text.Json 自定义转换器（平台专属 + 动态注册链）
+- 文件:
+    - libs/server/Resp/RespCommandArgument.cs:
+        - CanConvert
+        - Read
+  理由: >-
+    C# RespCommandArgumentConverter 是 System.Text.Json 自定义 JsonConverter
+    （RespCommandDataProvider.cs:114 装配），服务于「模块运行期注册自定义命令
+    时声明参数元数据 → COMMAND INFO 序列化输出」链路；rust 无 System.Text.Json
+    亦无动态注册管理层（转写规范删除 CustomCommandManager），COMMAND INFO 为
+    编译期静态清单（wresp catalog/commands_info.rs），转换器无承接面

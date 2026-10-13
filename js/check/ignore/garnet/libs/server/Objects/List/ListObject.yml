@@ -1,0 +1,23 @@
+# 集合对象层收尾（ListObject.cs 两件），对位判例：garnet/libs/server/Objects/
+# Hash/HashObject.yml 与 libs/server/Objects/SortedSet/SortedSetObject.yml 同型裁决。
+# 取证：C# ListObject.cs:126 Dispose 是空体（{ }，仅满足常驻对象的 IDisposable
+# 形状要求）、:129 Clone 是 `new ListObject(list, HeapMemorySize)` 的两字段手抄
+# 拷贝构造。rust 侧 ListObject（wcol/src/list/list_object.rs:65）为
+# #[derive(Debug, Clone)]，复制语义由 derive 逐字段生成、无手写方法体可挂符号锚；
+# 释放面 rust 无常驻对象层（信封值随所有权析构，物理剔除走读路径 purge 与
+# 删空自愈，见 doc/zh/collection.md），同口径结论在档
+# task/done/my-wcol-count-name-split.md:20
+- 文件:
+    - libs/server/Objects/List/ListObject.cs:
+        - Clone
+  理由: >-
+    克隆由 wcol/src/list/list_object.rs:65 derive(Clone) 承接，VecDeque 逐字段
+    拷贝即 C# 拷贝构造（list 引用 + HeapMemorySize 手抄）语义，无手写
+    Clone 方法体可挂符号锚
+- 文件:
+    - libs/server/Objects/List/ListObject.cs:
+        - Dispose
+  理由: >-
+    C# 本体即为空（{ }），是常驻对象层的 IDisposable 形状要求；rust 信封
+    无常驻对象层与后台线程，资源随所有权析构释放，无对位方法体
+    （同 HashObject.yml / SortedSetObject.yml 口径）

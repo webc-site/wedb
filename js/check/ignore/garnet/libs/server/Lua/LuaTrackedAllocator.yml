@@ -1,0 +1,8 @@
+# 计数分配器 bool 谓词（零消费 pub 面普查批五）
+- 文件:
+    - libs/server/Lua/LuaTrackedAllocator.cs:
+        - IsInfallibleAllocation
+  理由: >-
+    tracked 分配器的 deallocate/resize 需要在应急指针表内取下标以换代/摘除条目，
+    故直接持 infallible_allocations 单点表；只回答真假的 bool 谓词在本仓零读者，
+    与表本身是同一事实的第二个出口，按普查纪律删除。

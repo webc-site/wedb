@@ -1,0 +1,6 @@
+- 文件:
+    - samples/ETag/Caching.cs
+    - samples/ETag/EtagAbstractions.cs
+    - samples/ETag/OccSimulation.cs
+    - samples/ETag/Program.cs
+  理由: C# 样例工程与示例客户端代码，非核心服务端实现

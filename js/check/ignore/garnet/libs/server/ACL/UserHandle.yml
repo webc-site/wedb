@@ -1,0 +1,14 @@
+# C# UserHandle.TrySetUser（Interlocked CAS 换新）服务于「全局共享句柄跨线程
+# 换代、全部持有者即时见新权限」的 C# ACL 形态（消费点 ACLCommands.cs SETUSER
+# 的 do-while CAS 重试环）。rust 按转写规范走「存储单点 + 会话本地句柄」：
+# 句柄连接独占（命令串行处理无并发写者），换代 = 重读存储构造新句柄整体替换
+# （wnode acl_commands.rs 自改刷新臂），无共享 CAS 域；跨连接撤权传播由
+# 引擎级 ACL 代数方案另行承接（task/ing/acl-setuser-live-connection-propagation.md，
+# 亦不经 CAS 原语）。死口 try_set_user 已删，UserHandle 简化为构造即定格的
+# 只读快照句柄。
+- 文件:
+    - libs/server/ACL/UserHandle.cs:
+        - TrySetUser
+  理由: rust 无多连接共享句柄域（存储单点 + 会话本地句柄，命令串行），
+    CAS 换新无并发场景；换代走整体替换句柄，跨连接传播走 ACL 代数方案，
+    该原语全仓零生产消费，删除

@@ -1,0 +1,5 @@
+- 理由: C# GetAllLocksets（GarnetServerMonitor.cs:103）garnet 全仓亦零调用，
+    仅接口声明无消费；rust 诊断壳 get_all_locksets 同态零调用，一并删除
+  文件:
+    - libs/server/Metrics/GarnetServerMonitor.cs:
+        - GetAllLocksets

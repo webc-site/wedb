@@ -1,0 +1,39 @@
+[package]
+name = "wnode_test"
+version = "0.1.0"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/webc-site/wedb/tree/main/wnode_test"
+description = "Wedb integration-test support over wnode: session factory, server harness, socket IO"
+keywords = ["database", "key-value", "test", "testing"]
+categories = ["database-implementations", "development-tools", "development-tools::testing"]
+
+[dependencies]
+aok.workspace = true
+waof.workspace = true
+wbase.workspace = true
+wcol.workspace = true
+wconf.workspace = true
+wdev.workspace = true
+wkv.workspace = true
+wmetric.workspace = true
+wnode.workspace = true
+wresp.workspace = true
+wtxn.workspace = true
+wval.workspace = true
+wvector.workspace = true
+
+[dependencies.wtest_base]
+workspace = true
+
+[dependencies.tempfile]
+workspace = true
+
+[dependencies.compio]
+workspace = true
+features = ["io", "net", "runtime"]
+
+[lints]
+workspace = true

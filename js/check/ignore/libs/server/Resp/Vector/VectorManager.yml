@@ -1,0 +1,13 @@
+- 理由: |-
+    C# EnsureDistanceBufferSize/EnsureIdBufferSize 为 private 缓冲保障
+    帮助函数；rust 检索路径（resp_server_session_vectors.rs）输出缓冲自管，
+    无对应调用点，零调用壳删除。EnsureFilterBitmapSize 有活跃调用保留。
+    RequestDropInMemoryIndex 的 C# 生产点只有主存记录逐出触发器（GarnetRecordTriggers
+    的 OnEvict 臂，见 js/check/ignore/server.yml 同条）；rust 索引记录驻留
+    VectorManager 登记表、不入 wkv 值域，无逐出事件可投递，请求丢弃链（入口 +
+    常驻协程 + 锁侧等待口 + wbase work_set 载体）已整链删除。
+  文件:
+    - libs/server/Resp/Vector/VectorManager.cs:
+        - EnsureDistanceBufferSize
+        - EnsureIdBufferSize
+        - RequestDropInMemoryIndex

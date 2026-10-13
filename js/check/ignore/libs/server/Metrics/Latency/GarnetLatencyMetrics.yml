@@ -1,0 +1,11 @@
+- 理由: >-
+    C# Return（metrics=null 归还对象池）随 rust
+    去池化删除：全局延迟表为普通
+    Vec<Histogram>，归并即清零（GarnetLatencyMetrics::merge）；调用臂折叠进
+    wmetric garnet_server_monitor.rs
+    add_metrics_history_session_dispose（明文对齐 C#
+    同一函数内 Merge + Return 两臂）与会话侧
+    GarnetLatencyMetricsSession::return_to_pool
+  文件:
+    - libs/server/Metrics/Latency/GarnetLatencyMetrics.cs:
+        - Return

@@ -1,0 +1,83 @@
+export default {
+  "meta.title": "WeDB Bench",
+  "meta.description":
+    "Le benchmark de wedb au format redb : wkv et wbftree face à fjall, rocksdb et sqlite sur quatre images de runners — tableaux, comparaisons en barres et tendances par commit.",
+
+  "nav.section.bars": "Graphiques",
+  "nav.section.trend": "Tendance",
+  "nav.section.table": "Tableaux",
+  "nav.data": "Données brutes",
+  "nav.github": "GitHub",
+  "nav.lang": "Langue",
+
+  "hero.title": "wedb, mesuré comme redb se mesure lui-même",
+  "hero.body":
+    "L'ordre des lignes, les unités et les règles de mise en gras suivent le harnais redb-bench : les mêmes 18 segments de charge, les mêmes unités de débit, le même meilleur par ligne signalé. Les colonnes testées sont wkv (KV à journal de hachage) et wbftree (arbre B+ ordonné) de wedb, comparées à fjall, rocksdb et sqlite.",
+  "hero.scale_standard": "échelle standard redb",
+  "hero.headline": "{bulk} en masse · {sorted} triées · clés de {key} B · valeurs de {value} B",
+  "hero.columns_platforms": "{columns} colonnes · {platforms} plateformes",
+  "hero.empty":
+    "Aucune donnée de benchmark pour l'instant : cela se complète dès qu'une exécution Benchmark sur la branche principale se termine.",
+
+  "section.bars.title": "Face-à-face par plateforme",
+  "section.bars.desc":
+    "Choisis un segment de charge pour comparer les moteurs sur une plateforme. La longueur de la barre est la valeur de ce segment ; ★ marque le plus rapide.",
+  "section.trend.title": "Tendance au fil des commits",
+  "section.trend.desc":
+    "La même plateforme dans le temps, un point par exécution sur la branche principale — pour surveiller les régressions plutôt qu'un instantané isolé. Survole un point pour voir le moteur, la version et le delta.",
+  "section.table.title": "Derniers tableaux",
+  "section.table.desc":
+    "Le tableau complet de la dernière exécution de la plateforme sélectionnée : même ordre de lignes, mêmes unités et mêmes règles de gras que le tableau publié par redb, pour lire les deux côte à côte.",
+
+  "pane.bars": "Segment unique",
+  "pane.trend": "Par commit",
+  "bars.higher_better": "Plus haut vaut mieux",
+  "bars.empty": "Pas encore de données de plateforme à comparer.",
+  "bars.aria": "Comparaison horizontale en barres des moteurs sur le segment de charge sélectionné",
+  "bars.best_hint": "★ le plus rapide du segment",
+
+  "trend.aria": "Tendance par commit des moteurs sur le segment de charge sélectionné",
+  "trend.empty": "Pas encore de données de tendance : chaque exécution terminée sur la branche principale ajoute un point.",
+  "trend.dots":
+    "{n} points · l'axe étiquette chaque exécution avec sa version · un creux signifie que cette colonne n'a produit aucune valeur lors de cette exécution (plantage, délai dépassé ou hors matrice), la ligne s'y interrompt et n'est jamais interpolée.",
+  "trend.tip_delta": "vs exécution précédente",
+  "trend.tip_na": "aucune donnée",
+
+  "table.empty": "Cette plateforme n'a pas de données pour l'exécution sélectionnée.",
+  "table.utc": "UTC",
+  "table.workload":
+    "{bulk} en masse · {sorted} triées · {reads} lectures aléatoires · {scans}×{scan_len} lectures par plage · clés de {key} B · valeurs de {value} B · cache {cache}",
+  "table.median_note":
+    "Les segments de lecture sont la médiane de {n} exécutions ; chaque colonne tourne dans son propre sous-processus, donc un plantage ou un délai dépassé réduit toute la colonne à N/A.",
+  "status.crashed": "planté",
+  "status.timeout": "délai dépassé",
+  "commit.local": "en local",
+
+  "foot.line1":
+    "Les tableaux sont produits par le côté usine du bench (Rust) : les 18 segments de charge, les étiquettes d'unités et le gras du meilleur par ligne vivent dans crates/wedb-bench. Le site ne consomme que le JSON machine et ne réimplémente jamais ce formatage.",
+  "foot.line2":
+    "Pipeline : le workflow Benchmark exécute une colonne par moteur sur quatre images de runners, benchreport merge les fusionne en tableaux par plateforme et ajoute l'historique, puis le workflow Website publie le site avec cet historique sur gh-pages.",
+  "foot.line3": "Les données sont actualisées après chaque exécution de benchmark sur la branche principale.",
+  "foot.links": "Liens",
+  "foot.workflow_bench": "Workflow Benchmark",
+  "foot.workflow_website": "Workflow Website",
+
+  "bench.row.bulk_load": "chargement en masse",
+  "bench.row.individual_writes": "écritures individuelles",
+  "bench.row.small_batch_writes": "écritures par petits lots",
+  "bench.row.sorted_inserts": "insertions ordonnées",
+  "bench.row.nosync_writes": "écritures sans sync",
+  "bench.row.len": "len()",
+  "bench.row.random_reads": "lectures aléatoires",
+  "bench.row.random_range_reads": "lectures par plage aléatoires",
+  "bench.row.random_reads_4_threads": "lectures aléatoires (4 threads)",
+  "bench.row.random_reads_8_threads": "lectures aléatoires (8 threads)",
+  "bench.row.random_reads_16_threads": "lectures aléatoires (16 threads)",
+  "bench.row.random_reads_32_threads": "lectures aléatoires (32 threads)",
+  "bench.row.removals": "suppressions",
+  "bench.row.retain": "retain",
+  "bench.row.extract_if": "extract_if",
+  "bench.row.pop": "pop",
+  "bench.row.uncompacted_size": "taille non compactée",
+  "bench.row.compacted_size": "taille compactée",
+};

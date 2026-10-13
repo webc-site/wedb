@@ -1,0 +1,13 @@
+# C# RecoverLogDriver.Dispose（:79）释放 replayIterator（Tsavorite 迭代器）
+# 与 cts（CancellationTokenSource，Worker 取消轮询用）。rust 侧
+# recover_log_driver.rs 的 RecoverLogDriver 为纯游标状态体（起止地址、计数、
+# 前缀一致上界标记）：回放迭代器按调用期所有权局部存活（create_and_run_
+# intra_page_parallel_replay_tasks 内 JoinSet 任务自持），终止以结构性上界
+# 字段承接（skip_replay 判定），无迭代器句柄与取消令牌需要显式释放
+- 文件:
+    - libs/server/AOF/Recover/RecoverLogDriver.cs:
+        - Dispose
+  理由: >-
+    C# Dispose 释放回放迭代器与取消令牌；rust 驱动为纯游标状态体，迭代器
+    按调用期所有权局部存活、终止由结构性上界字段承接，无显式 dispose
+    方法与调用面

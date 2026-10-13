@@ -1,0 +1,13 @@
+# ReadConsistency 族资源释放口甄别（replay_align_barrier.rs 全量 1:1 对位：
+# TryOpenRound/SignalArrivalAndWait/SignalArrival/WaitForAllArrivals/
+# ReleaseRound/SignalAll/Disable/Enable 与嵌套 Round.Release 均已补锚）。
+# 仅余 Dispose：C# 逐个释放 participantEvents（ManualResetEventSlim[] OS 等待
+# 句柄）。rust ParticipantEvent 由 AtomicBool + event_listener::Event 承接，
+# 无 OS 句柄，所有权析构即释放，无显式 dispose 面
+- 文件:
+    - libs/server/AOF/ReadConsistency/ReplayAlignBarrier.cs:
+        - Dispose
+  理由: >-
+    C# Dispose 释放 participantEvents 的 ManualResetEventSlim 等待句柄；
+    rust 对位 ParticipantEvent 为原子标志 + event_listener::Event（零 OS
+    资源），随栅栏所有权析构即释放，无显式 dispose 方法与调用面

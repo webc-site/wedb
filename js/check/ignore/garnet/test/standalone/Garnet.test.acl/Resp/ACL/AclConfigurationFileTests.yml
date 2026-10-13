@@ -1,0 +1,8 @@
+# C# AclConfigurationFileTests 为 ACL 文件配置（garnet.conf ACL 段）的加载/保存测试。
+# transpile 规范「ACL 数据库持久化」：彻底废弃文件配置，配置文件统一 nested_text 且
+# ACL 以 KeyTag::Acl 存入底层存储，文件配置面连同其测试一并移除；存储持久化装载
+# 由 wacl load_from_bytes / dump_to_bytes 承接并有 wacl/tests/access_control_list_tests.rs 覆盖
+- 文件:
+    - test/standalone/Garnet.test.acl/Resp/ACL/AclConfigurationFileTests.cs
+  理由: 被测对象（ACL 文件配置加载/保存）按转写规范整体废弃，测试随之移除；
+    存储持久化路径已有 wacl 单元测试覆盖

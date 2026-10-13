@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- 固定 net10.0：garnet Directory.Build.props 多目标 net8.0;net10.0，本 exe 只取 net10.0 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>TsavoriteBench</AssemblyName>
+    <RootNamespace>Wedb.Bench.Tsavorite</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- 不生成 XML 文档：避免 CS1591 缺失注释警告（garnet props 会打开 GenerateDocumentationFile，本目录不在其作用域，但显式关掉更稳） -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 只读引用 vendored Tsavorite 核心库与 BfTree 互操作库，绝不修改其源码 -->
+    <ProjectReference Include="/Users/z/git/db/wedb/garnet/libs/storage/Tsavorite/cs/src/core/Tsavorite.core.csproj" />
+    <ProjectReference Include="/Users/z/git/db/wedb/garnet/libs/native/bftree-garnet/BfTreeInterop.csproj" SetTargetFramework="TargetFramework=net10.0" />
+    <None Include="/Users/z/git/db/wedb/garnet/libs/native/bftree-garnet/runtimes/osx-arm64/native/libbftree_garnet.dylib" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="/Users/z/git/db/wedb/garnet/libs/native/bftree-garnet/runtimes/**/*" LinkBase="runtimes" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
